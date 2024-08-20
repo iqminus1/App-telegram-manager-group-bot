@@ -7,16 +7,20 @@ import jakarta.persistence.Id;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 
+import java.util.Objects;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
 @ToString
-@Entity
+@Entity(name = "users")
 public class User {
     @Id
     private Long id;
 
     @Enumerated(EnumType.STRING)
     private StateEnum state;
+
+
 }

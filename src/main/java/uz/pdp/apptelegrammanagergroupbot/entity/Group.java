@@ -12,7 +12,7 @@ import java.util.List;
 @Getter
 @Setter
 @ToString
-@Entity
+@Entity(name = "groups")
 public class Group extends AbsLongEntity {
     private Long ownerId;
 

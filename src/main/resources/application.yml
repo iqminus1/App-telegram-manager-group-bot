@@ -4,7 +4,7 @@ spring:
   datasource:
     username: postgres
     password: 123
-    url: jdbc:postgresql://localhost:5432/telegram_bot_db
+    url: jdbc:postgresql://localhost:5432/telegram_manage_group_bot_db
     driver-class-name: org.postgresql.Driver
   jpa:
     show-sql: true

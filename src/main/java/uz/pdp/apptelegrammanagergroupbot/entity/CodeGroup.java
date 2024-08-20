@@ -10,7 +10,7 @@ import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 @Getter
 @ToString
 @Entity
-public class Code extends AbsLongEntity {
+public class CodeGroup extends AbsLongEntity {
     private String code;
 
     private Long groupId;

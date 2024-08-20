@@ -2,6 +2,9 @@ package uz.pdp.apptelegrammanagergroupbot;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Bean;
+
+import java.util.Random;
 
 @SpringBootApplication
 public class AppTelegramManagerGroupBotApplication {
@@ -10,4 +13,8 @@ public class AppTelegramManagerGroupBotApplication {
         SpringApplication.run(AppTelegramManagerGroupBotApplication.class, args);
     }
 
+    @Bean
+    public Random random(){
+        return new Random();
+    }
 }
