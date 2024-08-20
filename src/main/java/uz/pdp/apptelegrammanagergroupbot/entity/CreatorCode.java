@@ -4,18 +4,13 @@ import jakarta.persistence.Entity;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 
-import java.sql.Timestamp;
-
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
 @ToString
-@Entity(name = "orders")
-public class Order extends AbsLongEntity {
-    private Long userId;
+@Entity
 
-    private Long groupId;
-
-    private Timestamp expireDay;
+public class CreatorCode extends AbsLongEntity {
+    private String code;
 }

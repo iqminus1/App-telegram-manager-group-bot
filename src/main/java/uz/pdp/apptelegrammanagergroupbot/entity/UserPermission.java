@@ -29,5 +29,5 @@ public class UserPermission extends AbsLongEntity {
 
     private boolean code;
 
-    private boolean screenShot;
+    private boolean screenshot;
 }
