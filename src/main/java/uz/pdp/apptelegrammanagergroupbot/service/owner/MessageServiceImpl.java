@@ -16,6 +16,7 @@ import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
 
+import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +52,11 @@ public class MessageServiceImpl implements MessageService {
                     getCreator(message);
                 else if (text.equals(AppConstant.USE_CODE)) {
                     usePermissionCode(message);
+                } else if (text.equals(AppConstant.BUY_PERMISSION)){
+                    buyPermission(message);
+                }
+                else if (text.equals(AppConstant.ABOUT_BOT)) {
+                    aboutUs(message);
                 }
             } else if (user.getState().equals(StateEnum.USE_CODE)) {
                 checkPermissionCodeAndActivate(message);
@@ -59,6 +65,14 @@ public class MessageServiceImpl implements MessageService {
             if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
                 savePhoto(message);
         }
+    }
+
+    private void buyPermission(Message message) {
+        ownerBotSender.exe(message.getFrom().getId(), AppConstant.DONT_COMPLETED, null);
+    }
+
+    private void aboutUs(Message message) {
+        ownerBotSender.exe(message.getFrom().getId(), AppConstant.ABOUT_US_TEXT, null);
     }
 
     private void checkPermissionCodeAndActivate(Message message) {
@@ -73,9 +87,29 @@ public class MessageServiceImpl implements MessageService {
                 return;
             }
             DontUsedCodePermission dontUsedCodePermission = first.get();
-//            new UserPermission(userId, message.getFrom().getFirstName(), null, null, null, LocalDateTime.now().plusMonths(dontUsedCodePermission.getExpireDays());
-
+            UserPermission userPermission = new UserPermission(userId, message.getFrom().getFirstName(), null, null, null, Timestamp.valueOf(LocalDateTime.now().plusMonths(dontUsedCodePermission.getExpireMonth())), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+            userPermissionRepository.save(userPermission);
+            dontUsedCodePermissionRepository.delete(dontUsedCodePermission);
+            commonUtils.setState(userId, StateEnum.START);
+            ownerBotSender.exe(userId, AppConstant.PERMISSION_CODE_BUY_IS_VALID, buttonService.startButton(userId));
+            return;
         }
+        Optional<DontUsedCodePermission> first = list.stream().filter(dontUsed -> dontUsed.getType().equals(CodeType.EXPLAINS)).findFirst();
+        if (first.isEmpty()) {
+            commonUtils.setState(userId, StateEnum.START);
+            ownerBotSender.exe(userId, AppConstant.PERMISSION_CODE_YOUR_MISTAKE, buttonService.startButton(userId));
+            return;
+        }
+        DontUsedCodePermission dontUsedCodePermission = first.get();
+        UserPermission userPermission = optionalUserPermission.get();
+        userPermission.setExpireDate(Timestamp.valueOf(userPermission.getExpireDate().toLocalDateTime().plusMonths(dontUsedCodePermission.getExpireMonth())));
+        userPermission.setPayment(dontUsedCodePermission.isPayment());
+        userPermission.setCode(dontUsedCodePermission.isCodeGeneration());
+        userPermission.setScreenshot(dontUsedCodePermission.isScreenshot());
+        userPermissionRepository.save(userPermission);
+        dontUsedCodePermissionRepository.delete(dontUsedCodePermission);
+        commonUtils.setState(userId, StateEnum.START);
+        ownerBotSender.exe(userId, AppConstant.PERMISSION_CODE_EXPLAINS_IS_VALID, buttonService.startButton(userId));
     }
 
     private void usePermissionCode(Message message) {
@@ -119,6 +153,7 @@ public class MessageServiceImpl implements MessageService {
 
     private void start(Message message) {
         Long userId = message.getFrom().getId();
+        commonUtils.setState(userId, StateEnum.START);
         ReplyKeyboard replyKeyboard = buttonService.startButton(userId);
         ownerBotSender.exe(userId, AppConstant.START_TEXT, replyKeyboard);
         tempData.deleteTempIfAdmin(userId);
