@@ -114,22 +114,22 @@ public class ButtonServiceImpl implements ButtonService {
             list.add(AppConstant.GROUP_SETTINGS);
         }
 
-        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findById(userId);
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
 
         if (optionalUserPermission.isPresent()) {
             String botToken = optionalUserPermission.get().getBotToken();
-            if (botToken.isEmpty() || botToken.isBlank())
-                list.add(AppConstant.CHANGE_BOT_TOKEN);
-            else list.add(AppConstant.ADD_BOT_TOKEN);
+            if (botToken == null || botToken.isEmpty() || botToken.isBlank())
+                list.add(AppConstant.ADD_BOT_TOKEN);
+            else list.add(AppConstant.CHANGE_BOT_TOKEN);
 
-            if (optionalUserPermission.get().isCode())
-                list.add(AppConstant.GENERATE_CODE_FOR_REQUEST);
+//            if (optionalUserPermission.get().isCode())
+//                list.add(AppConstant.GENERATE_CODE_FOR_REQUEST);
 
-            if (optionalUserPermission.get().isScreenshot())
-                list.add(AppConstant.SEE_ALL_SCREENSHOTS);
+//            if (optionalUserPermission.get().isScreenshot())
+//                list.add(AppConstant.SEE_ALL_SCREENSHOTS);
 
-            if (optionalUserPermission.get().isPayment())
-                list.add(AppConstant.VIEW_STATS);
+//            if (optionalUserPermission.get().isPayment())
+//                list.add(AppConstant.VIEW_STATS);
 
             list.add(AppConstant.EXTENSION_OF_RIGHT);
         } else
@@ -149,5 +149,20 @@ public class ButtonServiceImpl implements ButtonService {
                 Map.of(AppConstant.PERMISSION_CODE_FOR_EXTENSION_TEXT,
                         AppConstant.PERMISSION_CODE_FOR_DATA + CodeType.EXPLAINS)
         ), 1, false);
+    }
+
+    @Override
+    public ReplyKeyboard requestContact() {
+        ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
+        markup.setResizeKeyboard(true);
+        List<KeyboardRow> rows = new ArrayList<>();
+        KeyboardButton keyboardButton = new KeyboardButton();
+        keyboardButton.setRequestContact(true);
+        keyboardButton.setText(AppConstant.REQUEST_CONTACT);
+        KeyboardRow row = new KeyboardRow();
+        row.add(keyboardButton);
+        rows.add(row);
+        markup.setKeyboard(rows);
+        return markup;
     }
 }

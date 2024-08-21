@@ -54,4 +54,10 @@ public interface AppConstant {
     String FALSE = "❌";
     String WHICH_SERVICES = "Отмените услуг который вам не нужно";
     String DONT_COMPLETED = "Еще не готов";
+    String SEND_CONTACT_NUMBER = "Отправте контактный номер";
+    String SENDING_TOKEN = "Отправте бот токена";
+
+    String ADMIN_SENDING_BOT_USERNAME = "Отправте username бота";
+    String REQUEST_CONTACT = "Отправтить контакт";
+    String BOT_TOKEN_COMPLETED = "Вы успещно закончили";
 }
