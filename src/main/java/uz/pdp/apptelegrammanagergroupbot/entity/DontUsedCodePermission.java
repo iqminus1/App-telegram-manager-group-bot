@@ -29,6 +29,8 @@ public class DontUsedCodePermission extends AbsLongEntity {
     @Enumerated(EnumType.STRING)
     private CodeType type;
 
+    private Integer sizeRequests;
+
     private boolean payment;
 
     private boolean screenshot;

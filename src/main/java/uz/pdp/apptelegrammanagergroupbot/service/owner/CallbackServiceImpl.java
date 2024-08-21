@@ -7,9 +7,11 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import uz.pdp.apptelegrammanagergroupbot.entity.DontUsedCodePermission;
 import uz.pdp.apptelegrammanagergroupbot.entity.User;
+import uz.pdp.apptelegrammanagergroupbot.entity.UserPermission;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.DontUsedCodePermissionRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.UserPermissionRepository;
 import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
@@ -26,6 +28,7 @@ public class CallbackServiceImpl implements CallbackService {
     private final TempData tempData;
     private final OwnerBotSender ownerBotSender;
     private final DontUsedCodePermissionRepository dontUsedCodePermissionRepository;
+    private final UserPermissionRepository userPermissionRepository;
 
     @Override
     public void process(CallbackQuery callbackQuery) {
@@ -48,7 +51,36 @@ public class CallbackServiceImpl implements CallbackService {
             } else if (data.startsWith(AppConstant.BACK_DATA)) {
                 backChoosePermissionExpire(callbackQuery);
             }
+        } else if (user.getState().equals(StateEnum.ADMIN_SELECTING_PAYMENT)) {
+            if (data.startsWith(AppConstant.ACCEPT_PERMISSION_DATA)) {
+                acceptAdminPermission(callbackQuery);
+            } else if (data.startsWith("true:") || data.startsWith("false:")) {
+                changeAdminPermissionStatus(callbackQuery);
+            }
         }
+    }
+
+    private void changeAdminPermissionStatus(CallbackQuery callbackQuery) {
+        Long userId = callbackQuery.getFrom().getId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
+        int i = Integer.parseInt(callbackQuery.getData().split(":")[1]);
+        UserPermission tempPermission = tempData.getTempPermission(userId);
+        if (i == 1)
+            tempPermission.setPayment(!tempPermission.isPayment());
+        if (i == 2)
+            tempPermission.setCode(!tempPermission.isCode());
+        if (i == 3)
+            tempPermission.setScreenshot(!tempPermission.isScreenshot());
+
+        ownerBotSender.changeText(userId, messageId, choosePaymentString(tempPermission.isPayment(), tempPermission.isCode(), tempPermission.isScreenshot()));
+        ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) buttonService.generateKeyboardPermissionStatus(tempPermission.isPayment(), tempPermission.isCode(), tempPermission.isScreenshot(), false));
+    }
+
+    private void acceptAdminPermission(CallbackQuery callbackQuery) {
+        Long userId = callbackQuery.getFrom().getId();
+        ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
+        commonUtils.setState(userId, StateEnum.START);
+        ownerBotSender.exe(userId, AppConstant.GENERATE_INVOICE, buttonService.startButton(userId));
     }
 
     private void backChoosePermissionExpire(CallbackQuery callbackQuery) {
@@ -61,14 +93,14 @@ public class CallbackServiceImpl implements CallbackService {
 
     private void changePermissionStatus(CallbackQuery callbackQuery) {
         int i = Integer.parseInt(callbackQuery.getData().split(":")[1]);
-        DontUsedCodePermission dontUsedCodePermission = tempData.get(callbackQuery.getFrom().getId());
+        DontUsedCodePermission dontUsedCodePermission = tempData.getTempCode(callbackQuery.getFrom().getId());
         if (i == 1)
             dontUsedCodePermission.setPayment(!dontUsedCodePermission.isPayment());
         if (i == 2)
             dontUsedCodePermission.setCodeGeneration(!dontUsedCodePermission.isCodeGeneration());
         if (i == 3)
             dontUsedCodePermission.setScreenshot(!dontUsedCodePermission.isScreenshot());
-        ReplyKeyboard replyKeyboard = generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+        ReplyKeyboard replyKeyboard = buttonService.generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot(), true);
         String text = choosePaymentString(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
         ownerBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), text);
         ownerBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), (InlineKeyboardMarkup) replyKeyboard);
@@ -77,10 +109,10 @@ public class CallbackServiceImpl implements CallbackService {
 
     private void acceptPermissionGenerate(CallbackQuery callbackQuery) {
         Long userId = callbackQuery.getFrom().getId();
-        DontUsedCodePermission dontUsedCodePermission = tempData.get(userId);
+        DontUsedCodePermission dontUsedCodePermission = tempData.getTempCode(userId);
         dontUsedCodePermission.setCreatedDate(new Timestamp(System.currentTimeMillis()));
         dontUsedCodePermissionRepository.save(dontUsedCodePermission);
-        tempData.deleteTempIfAdmin(userId);
+        tempData.removeTempDataByUser(userId);
         commonUtils.setState(userId, StateEnum.START);
         ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
         ownerBotSender.exe(userId, AppConstant.GETTING_CODE + dontUsedCodePermission.getCode(), buttonService.startButton(userId));
@@ -101,46 +133,18 @@ public class CallbackServiceImpl implements CallbackService {
         Integer messageId = callbackQuery.getMessage().getMessageId();
         commonUtils.setState(userId, StateEnum.CHOOSES_PAYMENT);
         Integer expire = Integer.parseInt(callbackQuery.getData().split(AppConstant.MONTH_DATA)[1]);
-        DontUsedCodePermission dontUsedCodePermission = tempData.get(userId);
+        DontUsedCodePermission dontUsedCodePermission = tempData.getTempCode(userId);
         dontUsedCodePermission.setExpireMonth(expire);
-        ReplyKeyboard replyKeyboard = generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+        ReplyKeyboard replyKeyboard = buttonService.generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot(), true);
         ownerBotSender.changeText(userId, messageId, choosePaymentString(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot()));
         ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) replyKeyboard);
     }
 
-    private ReplyKeyboard generateKeyboardPermissionStatus(boolean bool1, boolean bool2, boolean bool3) {
-        String data1 = "true:1";
-        String text1 = AppConstant.FALSE;
-        if (bool1) {
-            data1 = "false:1";
-            text1 = AppConstant.TRUE;
-        }
-        String data2 = "true:2";
-        String text2 = AppConstant.FALSE;
-        if (bool2) {
-            data2 = "false:2";
-            text2 = AppConstant.TRUE;
-        }
-        String data3 = "true:3";
-        String text3 = AppConstant.FALSE;
-        if (bool3) {
-            data3 = "false:3";
-            text3 = AppConstant.TRUE;
-        }
-
-        return buttonService.callbackKeyboard(List.of(
-                Map.of(text1, data1),
-                Map.of(text2, data2),
-                Map.of(text3, data3),
-                Map.of(AppConstant.ACCEPT_PERMISSION_TEXT, AppConstant.ACCEPT_PERMISSION_DATA),
-                Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA)
-        ), 1, false);
-    }
 
     private void selectPermissionType(CallbackQuery callbackQuery) {
         CodeType type = CodeType.valueOf(callbackQuery.getData().split(AppConstant.PERMISSION_CODE_FOR_DATA)[1]);
         Long userId = callbackQuery.getFrom().getId();
-        tempData.get(userId).setType(type);
+        tempData.getTempCode(userId).setType(type);
 
 
         ReplyKeyboard replyKeyboard = choosePermissionExpire();
@@ -158,7 +162,8 @@ public class CallbackServiceImpl implements CallbackService {
                 Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA)), 1, false);
     }
 
-    private String choosePaymentString(boolean bool1, boolean bool2, boolean bool3) {
+    @Override
+    public String choosePaymentString(boolean bool1, boolean bool2, boolean bool3) {
         StringBuilder sb = new StringBuilder();
         sb.append(AppConstant.WHICH_SERVICES).append("\n\n");
         sb.append("1. ").append(AppConstant.ADD_GROUP_WITH_PAYMENT);

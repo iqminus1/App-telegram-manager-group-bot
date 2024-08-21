@@ -165,4 +165,36 @@ public class ButtonServiceImpl implements ButtonService {
         markup.setKeyboard(rows);
         return markup;
     }
+
+    @Override
+    public ReplyKeyboard generateKeyboardPermissionStatus(boolean bool1, boolean bool2, boolean bool3, boolean addBack) {
+        String data1 = "true:1";
+        String text1 = AppConstant.FALSE;
+        if (bool1) {
+            data1 = "false:1";
+            text1 = AppConstant.TRUE;
+        }
+        String data2 = "true:2";
+        String text2 = AppConstant.FALSE;
+        if (bool2) {
+            data2 = "false:2";
+            text2 = AppConstant.TRUE;
+        }
+        String data3 = "true:3";
+        String text3 = AppConstant.FALSE;
+        if (bool3) {
+            data3 = "false:3";
+            text3 = AppConstant.TRUE;
+        }
+
+        List<Map<String, String>> list = new ArrayList<>(List.of(
+                Map.of(text1, data1),
+                Map.of(text2, data2),
+                Map.of(text3, data3),
+                Map.of(AppConstant.ACCEPT_PERMISSION_TEXT, AppConstant.ACCEPT_PERMISSION_DATA)));
+
+        if (addBack)
+            list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
+        return this.callbackKeyboard(list, 1, false);
+    }
 }
