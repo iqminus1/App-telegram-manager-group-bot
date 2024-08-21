@@ -1,7 +1,8 @@
 package uz.pdp.apptelegrammanagergroupbot.utils;
 
 public interface AppConstant {
-    String ABOUT_BOT = "About us";
+    String ABOUT_BOT = "О нас";
+    String ABOUT_US_TEXT = "Создатели должни паполнит анкуте";
     String BOT_TOKEN = "7526831468:AAFTZllAKdDJEhih22K-gcyUja4Da_pE_54";
     String BOT_USERNAME = "manager_group_father_bot";
     String START = "/start";
@@ -23,6 +24,8 @@ public interface AppConstant {
     String PERMISSION_CODE_FOR_EXTENSION_TEXT = "Код для длиться времени";
     String PERMISSION_CODE_FOR_DATA = "permissionCodeFor::";
     String PERMISSION_CODE_YOUR_MISTAKE = "Вы ошиблись чем-то";
+    String PERMISSION_CODE_BUY_IS_VALID = "Вы успешно использовали";
+    String PERMISSION_CODE_EXPLAINS_IS_VALID = "Успешно длинилос";
 
 
     String EMAIL_FOR_GET_CREATOR_PASS = "iqminus7@gmail.com";
@@ -50,4 +53,5 @@ public interface AppConstant {
     String TRUE = "✅";
     String FALSE = "❌";
     String WHICH_SERVICES = "Отмените услуг который вам не нужно";
+    String DONT_COMPLETED = "Еще не готов";
 }

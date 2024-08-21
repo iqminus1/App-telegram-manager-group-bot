@@ -81,7 +81,8 @@ public class CallbackServiceImpl implements CallbackService {
         dontUsedCodePermission.setCreatedDate(new Timestamp(System.currentTimeMillis()));
         dontUsedCodePermissionRepository.save(dontUsedCodePermission);
         tempData.deleteTempIfAdmin(userId);
-        ownerBotSender.deleteMessage(userId,callbackQuery.getMessage().getMessageId());
+        commonUtils.setState(userId, StateEnum.START);
+        ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
         ownerBotSender.exe(userId, AppConstant.GETTING_CODE + dontUsedCodePermission.getCode(), buttonService.startButton(userId));
 
 
@@ -101,7 +102,7 @@ public class CallbackServiceImpl implements CallbackService {
         commonUtils.setState(userId, StateEnum.CHOOSES_PAYMENT);
         Integer expire = Integer.parseInt(callbackQuery.getData().split(AppConstant.MONTH_DATA)[1]);
         DontUsedCodePermission dontUsedCodePermission = tempData.get(userId);
-        dontUsedCodePermission.setExpireDays(expire);
+        dontUsedCodePermission.setExpireMonth(expire);
         ReplyKeyboard replyKeyboard = generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
         ownerBotSender.changeText(userId, messageId, choosePaymentString(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot()));
         ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) replyKeyboard);

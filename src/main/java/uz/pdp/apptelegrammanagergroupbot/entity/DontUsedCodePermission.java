@@ -24,7 +24,7 @@ public class DontUsedCodePermission extends AbsLongEntity {
 
     private Timestamp createdDate;
 
-    private Integer expireDays;
+    private Integer expireMonth;
 
     @Enumerated(EnumType.STRING)
     private CodeType type;
