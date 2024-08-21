@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
+import uz.pdp.apptelegrammanagergroupbot.enums.ScreenshotStatus;
 
 import java.sql.Timestamp;
 
@@ -14,16 +15,16 @@ import java.sql.Timestamp;
 @ToString
 @Entity
 @SQLRestriction("active = false")
-public class CodeGroup extends AbsLongEntity {
-    private String code;
-
+public class ScreenshotGroup extends AbsLongEntity {
     private Long groupId;
 
-    private Long userId;
+    private Long sendUserId;
 
-    private Integer expireDay;
+    private String path;
+
+    private ScreenshotStatus status;
 
     private boolean active;
 
-    private Timestamp activeAt;
+    private Timestamp activeDate;
 }

@@ -25,6 +25,8 @@ public class UserPermission extends AbsLongEntity {
 
     private Timestamp expireDate;
 
+    private Integer sizeRequests;
+
     private boolean payment;
 
     private boolean code;

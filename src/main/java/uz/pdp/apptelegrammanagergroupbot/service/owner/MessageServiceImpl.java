@@ -9,10 +9,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRem
 import uz.pdp.apptelegrammanagergroupbot.entity.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
-import uz.pdp.apptelegrammanagergroupbot.repository.CreatorCodeRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.CreatorRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.DontUsedCodePermissionRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.UserPermissionRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.*;
+import uz.pdp.apptelegrammanagergroupbot.service.admin.BotController;
 import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
@@ -36,6 +34,9 @@ public class MessageServiceImpl implements MessageService {
     private final MailService mailService;
     private final TempData tempData;
     private final DontUsedCodePermissionRepository dontUsedCodePermissionRepository;
+    private final CodePermissionRepository codePermissionRepository;
+    private final CallbackService callbackService;
+    private final BotController botController;
 
     @Override
     public void process(Message message) {
@@ -48,25 +49,29 @@ public class MessageServiceImpl implements MessageService {
             if (user.getState().equals(StateEnum.START)) {
                 if (text.equals(AppConstant.GENERATE_CODE_FOR_PERMISSION)) {
                     generateCodeForPermission(message);
-                } else if (text.equals(AppConstant.GENERATE_CODE_FOR_CREATOR))
+                } else if (text.equals(AppConstant.GENERATE_CODE_FOR_CREATOR)) {
                     mailService.sendCodeForCreator();
-                else if (text.startsWith(AppConstant.DATA_GET_CREATOR))
+                } else if (text.startsWith(AppConstant.DATA_GET_CREATOR)) {
                     getCreator(message);
-                else if (text.equals(AppConstant.USE_CODE)) {
+                } else if (text.equals(AppConstant.USE_CODE)) {
                     usePermissionCode(message);
-                } else if (text.equals(AppConstant.BUY_PERMISSION)) {
-                    buyPermission(message);
                 } else if (List.of(AppConstant.ADD_BOT_TOKEN, AppConstant.CHANGE_BOT_TOKEN).contains(text)) {
                     addOrChangeToken(message);
                 } else if (text.equals(AppConstant.ABOUT_BOT)) {
                     aboutUs(message);
+                } else if (List.of(AppConstant.BUY_PERMISSION, AppConstant.EXTENSION_OF_RIGHT).contains(text)) {
+                    buyOrExtensionPermission(message);
                 }
             } else if (user.getState().equals(StateEnum.USE_CODE)) {
                 checkPermissionCodeAndActivate(message);
             } else if (user.getState().equals(StateEnum.ADMIN_SENDING_TOKEN)) {
                 setAdminBotToken(message);
-            } else if ((user.getState().equals(StateEnum.ADMIN_SENDING_BOT_USERNAME))) {
+            } else if (user.getState().equals(StateEnum.ADMIN_SENDING_BOT_USERNAME)) {
                 setAdminBotUsername(message);
+            } else if (user.getState().equals(StateEnum.SIZE_OF_REQUESTS)) {
+                setSizeOfRequestGenCode(message);
+            } else if (user.getState().equals(StateEnum.ADMIN_SENDING_SIZE_OF_REQUESTS)) {
+                setAdminSizeOfRequests(message);
             }
         } else if (message.hasPhoto()) {
             if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
@@ -78,6 +83,33 @@ public class MessageServiceImpl implements MessageService {
         }
     }
 
+    private void setAdminSizeOfRequests(Message message) {
+        Long userId = message.getFrom().getId();
+        int sizeOfRequests = Integer.parseInt(message.getText());
+
+        UserPermission tempPermission = tempData.getTempPermission(userId);
+        tempPermission.setSizeRequests(sizeOfRequests);
+        commonUtils.setState(userId, StateEnum.ADMIN_SELECTING_PAYMENT);
+        ownerBotSender.exe(userId, callbackService.choosePaymentString(tempPermission.isPayment(), tempPermission.isCode(), tempPermission.isScreenshot()), buttonService.generateKeyboardPermissionStatus(tempPermission.isPayment(), tempPermission.isCode(), tempPermission.isScreenshot(), false));
+    }
+
+    private void setSizeOfRequestGenCode(Message message) {
+        Long userId = message.getFrom().getId();
+
+        tempData.addTempCode(userId, new DontUsedCodePermission(userId, codeService.generateCode(), null, null, null, null, Integer.parseInt(message.getText()), true, true, true));
+
+        commonUtils.setState(userId, StateEnum.OWNER_SENDING_PHOTO);
+        ownerBotSender.exe(userId, AppConstant.OWNER_SEND_PHOTO, null);
+    }
+
+    private void buyOrExtensionPermission(Message message) {
+        Long userId = message.getFrom().getId();
+        UserPermission userPermission = new UserPermission(userId, message.getFrom().getFirstName(), null, null, null, null, null, false, false, false);
+        tempData.addTempPermission(userId, userPermission);
+        commonUtils.setState(userId, StateEnum.ADMIN_SENDING_SIZE_OF_REQUESTS);
+        ownerBotSender.exe(userId, AppConstant.SIZE_OF_REQUESTS, new ReplyKeyboardRemove(true));
+    }
+
     private void setAdminBotUsername(Message message) {
         Long userId = message.getFrom().getId();
         Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
@@ -87,6 +119,7 @@ public class MessageServiceImpl implements MessageService {
         UserPermission userPermission = optionalUserPermission.get();
         userPermission.setBotUsername(message.getText());
         userPermissionRepository.save(userPermission);
+        botController.addAdminBot(userPermission.getBotToken(), userPermission.getBotUsername(), userPermission.getUserId());
         commonUtils.setState(userId, StateEnum.START);
         ownerBotSender.exe(userId, AppConstant.BOT_TOKEN_COMPLETED, buttonService.startButton(userId));
     }
@@ -143,9 +176,6 @@ public class MessageServiceImpl implements MessageService {
         ownerBotSender.exe(userId, AppConstant.SEND_CONTACT_NUMBER, buttonService.requestContact());
     }
 
-    private void buyPermission(Message message) {
-        ownerBotSender.exe(message.getFrom().getId(), AppConstant.DONT_COMPLETED, null);
-    }
 
     private void aboutUs(Message message) {
         ownerBotSender.exe(message.getFrom().getId(), AppConstant.ABOUT_US_TEXT, null);
@@ -163,7 +193,9 @@ public class MessageServiceImpl implements MessageService {
                 return;
             }
             DontUsedCodePermission dontUsedCodePermission = first.get();
-            UserPermission userPermission = new UserPermission(userId, message.getFrom().getFirstName(), null, null, null, Timestamp.valueOf(LocalDateTime.now().plusMonths(dontUsedCodePermission.getExpireMonth())), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+            CodePermission codePermission = new CodePermission(dontUsedCodePermission.getCreateBy(), userId, message.getFrom().getFirstName(), null, null, dontUsedCodePermission.getExpireMonth(), dontUsedCodePermission.getSizeRequests(), dontUsedCodePermission.getType(), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+            codePermissionRepository.save(codePermission);
+            UserPermission userPermission = new UserPermission(userId, message.getFrom().getFirstName(), null, null, null, Timestamp.valueOf(LocalDateTime.now().plusMonths(dontUsedCodePermission.getExpireMonth())), dontUsedCodePermission.getSizeRequests(), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
             userPermissionRepository.save(userPermission);
             dontUsedCodePermissionRepository.delete(dontUsedCodePermission);
             commonUtils.setState(userId, StateEnum.START);
@@ -182,6 +214,9 @@ public class MessageServiceImpl implements MessageService {
         userPermission.setPayment(dontUsedCodePermission.isPayment());
         userPermission.setCode(dontUsedCodePermission.isCodeGeneration());
         userPermission.setScreenshot(dontUsedCodePermission.isScreenshot());
+        userPermission.setSizeRequests(dontUsedCodePermission.getSizeRequests());
+        CodePermission codePermission = new CodePermission(dontUsedCodePermission.getCreateBy(), userId, message.getFrom().getFirstName(), null, null, dontUsedCodePermission.getExpireMonth(), dontUsedCodePermission.getSizeRequests(), dontUsedCodePermission.getType(), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+        codePermissionRepository.save(codePermission);
         userPermissionRepository.save(userPermission);
         dontUsedCodePermissionRepository.delete(dontUsedCodePermission);
         commonUtils.setState(userId, StateEnum.START);
@@ -196,7 +231,8 @@ public class MessageServiceImpl implements MessageService {
     private void savePhoto(Message message) {
         String fileId = message.getPhoto().get(0).getFileId();
         Long userId = message.getFrom().getId();
-        tempData.addTempCode(userId, new DontUsedCodePermission(userId, codeService.generateCode(), fileId, null, null, null, false, false, false));
+        DontUsedCodePermission tempCode = tempData.getTempCode(userId);
+        tempCode.setPath(fileId);
 
         ReplyKeyboard replyKeyboard = buttonService.permissionCodeType();
         ownerBotSender.exe(userId, AppConstant.GENERATE_CODE_FOR_PERMISSION_TEXT, replyKeyboard);
@@ -209,8 +245,8 @@ public class MessageServiceImpl implements MessageService {
             return;
         }
 
-        commonUtils.setState(userId, StateEnum.OWNER_SENDING_PHOTO);
-        ownerBotSender.exe(userId, AppConstant.OWNER_SEND_PHOTO, new ReplyKeyboardRemove(true));
+        commonUtils.setState(userId, StateEnum.SIZE_OF_REQUESTS);
+        ownerBotSender.exe(userId, AppConstant.SIZE_OF_REQUESTS, new ReplyKeyboardRemove(true));
     }
 
     private void getCreator(Message message) {
@@ -232,7 +268,7 @@ public class MessageServiceImpl implements MessageService {
         commonUtils.setState(userId, StateEnum.START);
         ReplyKeyboard replyKeyboard = buttonService.startButton(userId);
         ownerBotSender.exe(userId, AppConstant.START_TEXT, replyKeyboard);
-        tempData.deleteTempIfAdmin(userId);
+        tempData.removeTempDataByUser(userId);
     }
 
 

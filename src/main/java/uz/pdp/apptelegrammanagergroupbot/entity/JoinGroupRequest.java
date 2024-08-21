@@ -3,6 +3,7 @@ package uz.pdp.apptelegrammanagergroupbot.entity;
 import jakarta.persistence.Entity;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
+import uz.pdp.apptelegrammanagergroupbot.enums.JoinTypeEnum;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -11,7 +12,9 @@ import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 @ToString
 @Entity
 public class JoinGroupRequest extends AbsLongEntity {
-    private Long chatId;
+    private Long userId;
 
     private Long groupId;
+
+    private JoinTypeEnum type;
 }

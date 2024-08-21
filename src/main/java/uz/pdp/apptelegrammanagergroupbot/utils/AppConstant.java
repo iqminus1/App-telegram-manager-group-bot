@@ -60,4 +60,6 @@ public interface AppConstant {
     String ADMIN_SENDING_BOT_USERNAME = "Отправте username бота";
     String REQUEST_CONTACT = "Отправтить контакт";
     String BOT_TOKEN_COMPLETED = "Вы успещно закончили";
+    String SIZE_OF_REQUESTS = "Отправте сколько запросов бот должен контролировать на месяц";
+    String GENERATE_INVOICE = "Генерация инвойса";
 }

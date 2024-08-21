@@ -26,7 +26,9 @@ public class CodePermission extends AbsLongEntity {
 
     private Timestamp createdDate;
 
-    private Integer expireDays;
+    private Integer expireMonth;
+
+    private Integer sizeRequests;
 
     @Enumerated(EnumType.STRING)
     private CodeType type;

@@ -17,4 +17,5 @@ public interface ButtonService {
 
     ReplyKeyboard permissionCodeType();
     ReplyKeyboard requestContact();
+    ReplyKeyboard generateKeyboardPermissionStatus(boolean bool1, boolean bool2, boolean bool3, boolean addBack);
 }
