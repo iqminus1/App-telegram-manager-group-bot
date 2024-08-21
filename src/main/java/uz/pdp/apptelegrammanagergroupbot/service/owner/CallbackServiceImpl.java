@@ -14,6 +14,7 @@ import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
 
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
@@ -51,7 +52,11 @@ public class CallbackServiceImpl implements CallbackService {
     }
 
     private void backChoosePermissionExpire(CallbackQuery callbackQuery) {
-
+        Long userId = callbackQuery.getFrom().getId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
+        commonUtils.setState(userId, StateEnum.PERMISSION_EXPIRE);
+        ownerBotSender.changeText(userId, messageId, AppConstant.SELECT_ANY_EXPIRE);
+        ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) choosePermissionExpire());
     }
 
     private void changePermissionStatus(CallbackQuery callbackQuery) {
@@ -60,9 +65,9 @@ public class CallbackServiceImpl implements CallbackService {
         if (i == 1)
             dontUsedCodePermission.setPayment(!dontUsedCodePermission.isPayment());
         if (i == 2)
-            dontUsedCodePermission.setPayment(!dontUsedCodePermission.isCodeGeneration());
+            dontUsedCodePermission.setCodeGeneration(!dontUsedCodePermission.isCodeGeneration());
         if (i == 3)
-            dontUsedCodePermission.setPayment(!dontUsedCodePermission.isScreenshot());
+            dontUsedCodePermission.setScreenshot(!dontUsedCodePermission.isScreenshot());
         ReplyKeyboard replyKeyboard = generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
         String text = choosePaymentString(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
         ownerBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), text);
@@ -71,13 +76,13 @@ public class CallbackServiceImpl implements CallbackService {
     }
 
     private void acceptPermissionGenerate(CallbackQuery callbackQuery) {
-
-//        DontUsedCodePermission dontUsedCodePermission = tempData.get(userId);
-//        dontUsedCodePermission.setExpireDays(expire);
-//        dontUsedCodePermission.setCreatedDate(new Timestamp(System.currentTimeMillis()));
-//        dontUsedCodePermissionRepository.save(dontUsedCodePermission);
-//        tempData.deleteTempIfAdmin(userId);
-//        ownerBotSender.exe(userId, AppConstant.GETTING_CODE + dontUsedCodePermission.getCode(), buttonService.startButton(userId));
+        Long userId = callbackQuery.getFrom().getId();
+        DontUsedCodePermission dontUsedCodePermission = tempData.get(userId);
+        dontUsedCodePermission.setCreatedDate(new Timestamp(System.currentTimeMillis()));
+        dontUsedCodePermissionRepository.save(dontUsedCodePermission);
+        tempData.deleteTempIfAdmin(userId);
+        ownerBotSender.deleteMessage(userId,callbackQuery.getMessage().getMessageId());
+        ownerBotSender.exe(userId, AppConstant.GETTING_CODE + dontUsedCodePermission.getCode(), buttonService.startButton(userId));
 
 
     }
@@ -97,8 +102,8 @@ public class CallbackServiceImpl implements CallbackService {
         Integer expire = Integer.parseInt(callbackQuery.getData().split(AppConstant.MONTH_DATA)[1]);
         DontUsedCodePermission dontUsedCodePermission = tempData.get(userId);
         dontUsedCodePermission.setExpireDays(expire);
-        ReplyKeyboard replyKeyboard = generateKeyboardPermissionStatus(true, true, true);
-        ownerBotSender.changeText(userId, messageId, choosePaymentString(true, true, true));
+        ReplyKeyboard replyKeyboard = generateKeyboardPermissionStatus(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
+        ownerBotSender.changeText(userId, messageId, choosePaymentString(dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot()));
         ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) replyKeyboard);
     }
 
@@ -124,7 +129,7 @@ public class CallbackServiceImpl implements CallbackService {
 
         return buttonService.callbackKeyboard(List.of(
                 Map.of(text1, data1),
-                Map.of(text1, data2),
+                Map.of(text2, data2),
                 Map.of(text3, data3),
                 Map.of(AppConstant.ACCEPT_PERMISSION_TEXT, AppConstant.ACCEPT_PERMISSION_DATA),
                 Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA)
@@ -137,30 +142,36 @@ public class CallbackServiceImpl implements CallbackService {
         tempData.get(userId).setType(type);
 
 
-        ReplyKeyboard replyKeyboard = buttonService.callbackKeyboard(List.of(
-                Map.of(AppConstant.ONE_MONTH, AppConstant.MONTH_DATA + 1),
-                Map.of(AppConstant.SIX_MONTH, AppConstant.MONTH_DATA + 6),
-                Map.of(AppConstant.ONE_YEAR, AppConstant.MONTH_DATA + 12),
-                Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA)), 1, false);
+        ReplyKeyboard replyKeyboard = choosePermissionExpire();
 
         commonUtils.setState(userId, StateEnum.PERMISSION_EXPIRE);
         ownerBotSender.changeText(userId, callbackQuery.getMessage().getMessageId(), AppConstant.SELECT_ANY_EXPIRE);
         ownerBotSender.changeKeyboard(userId, callbackQuery.getMessage().getMessageId(), (InlineKeyboardMarkup) replyKeyboard);
     }
 
+    private ReplyKeyboard choosePermissionExpire() {
+        return buttonService.callbackKeyboard(List.of(
+                Map.of(AppConstant.ONE_MONTH, AppConstant.MONTH_DATA + 1),
+                Map.of(AppConstant.SIX_MONTH, AppConstant.MONTH_DATA + 6),
+                Map.of(AppConstant.ONE_YEAR, AppConstant.MONTH_DATA + 12),
+                Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA)), 1, false);
+    }
+
     private String choosePaymentString(boolean bool1, boolean bool2, boolean bool3) {
         StringBuilder sb = new StringBuilder();
-        sb.append(AppConstant.WHICH_SERVICES).append("\n\n").append("1. ").append(AppConstant.ADD_GROUP_WITH_PAYMENT);
+        sb.append(AppConstant.WHICH_SERVICES).append("\n\n");
+        sb.append("1. ").append(AppConstant.ADD_GROUP_WITH_PAYMENT);
         if (bool1)
             sb.append(AppConstant.TRUE);
         else
             sb.append(AppConstant.FALSE);
-        sb.append("2. ").append(AppConstant.ADD_GROUP_WITH_GENERATION_CODE);
+        sb.append("\n").append("2. ").append(AppConstant.ADD_GROUP_WITH_GENERATION_CODE);
         if (bool2)
             sb.append(AppConstant.TRUE);
         else
             sb.append(AppConstant.FALSE);
-        sb.append("3. ").append(AppConstant.ADD_GROUP_WITH_SCREENSHOT);
+        sb.append("\n").append("3. ").append(AppConstant.ADD_GROUP_WITH_SCREENSHOT);
+
         if (bool3)
             sb.append(AppConstant.TRUE);
         else
