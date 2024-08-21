@@ -2,6 +2,7 @@ package uz.pdp.apptelegrammanagergroupbot.service.owner;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.objects.Contact;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
@@ -18,6 +19,7 @@ import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
@@ -52,19 +54,93 @@ public class MessageServiceImpl implements MessageService {
                     getCreator(message);
                 else if (text.equals(AppConstant.USE_CODE)) {
                     usePermissionCode(message);
-                } else if (text.equals(AppConstant.BUY_PERMISSION)){
+                } else if (text.equals(AppConstant.BUY_PERMISSION)) {
                     buyPermission(message);
-                }
-                else if (text.equals(AppConstant.ABOUT_BOT)) {
+                } else if (List.of(AppConstant.ADD_BOT_TOKEN, AppConstant.CHANGE_BOT_TOKEN).contains(text)) {
+                    addOrChangeToken(message);
+                } else if (text.equals(AppConstant.ABOUT_BOT)) {
                     aboutUs(message);
                 }
             } else if (user.getState().equals(StateEnum.USE_CODE)) {
                 checkPermissionCodeAndActivate(message);
+            } else if (user.getState().equals(StateEnum.ADMIN_SENDING_TOKEN)) {
+                setAdminBotToken(message);
+            } else if ((user.getState().equals(StateEnum.ADMIN_SENDING_BOT_USERNAME))) {
+                setAdminBotUsername(message);
             }
         } else if (message.hasPhoto()) {
             if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
                 savePhoto(message);
+        } else if ((message.hasContact())) {
+            if (user.getState().equals(StateEnum.ADMIN_SENDING_CONTACT)) {
+                sendingContact(message);
+            }
         }
+    }
+
+    private void setAdminBotUsername(Message message) {
+        Long userId = message.getFrom().getId();
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty()) {
+            return;
+        }
+        UserPermission userPermission = optionalUserPermission.get();
+        userPermission.setBotUsername(message.getText());
+        userPermissionRepository.save(userPermission);
+        commonUtils.setState(userId, StateEnum.START);
+        ownerBotSender.exe(userId, AppConstant.BOT_TOKEN_COMPLETED, buttonService.startButton(userId));
+    }
+
+    private void sendingContact(Message message) {
+        Long userId = message.getFrom().getId();
+        Contact contact = message.getContact();
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty()) {
+            return;
+        }
+        UserPermission userPermission = optionalUserPermission.get();
+        userPermission.setContactNumber(contact.getPhoneNumber());
+        userPermissionRepository.save(userPermission);
+        commonUtils.setState(userId, StateEnum.START);
+        message.setText(AppConstant.ADD_BOT_TOKEN);
+        this.process(message);
+    }
+
+    private void setAdminBotToken(Message message) {
+        Long userId = message.getFrom().getId();
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty()) {
+            return;
+        }
+        UserPermission userPermission = optionalUserPermission.get();
+        userPermission.setBotToken(message.getText());
+        userPermissionRepository.save(userPermission);
+        commonUtils.setState(userId, StateEnum.ADMIN_SENDING_BOT_USERNAME);
+        ownerBotSender.exe(userId, AppConstant.ADMIN_SENDING_BOT_USERNAME, null);
+    }
+
+    private void addOrChangeToken(Message message) {
+        Long userId = message.getFrom().getId();
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty()) {
+            return;
+        }
+        UserPermission userPermission = optionalUserPermission.get();
+        if (userPermission.getExpireDate().before(new Date())) {
+            return;
+        }
+        if (userPermission.getContactNumber() == null || userPermission.getContactNumber().isEmpty() || userPermission.getContactNumber().isBlank()) {
+            getContact(message);
+            return;
+        }
+        commonUtils.setState(userId, StateEnum.ADMIN_SENDING_TOKEN);
+        ownerBotSender.exe(userId, AppConstant.SENDING_TOKEN, new ReplyKeyboardRemove(true));
+    }
+
+    private void getContact(Message message) {
+        Long userId = message.getFrom().getId();
+        commonUtils.setState(userId, StateEnum.ADMIN_SENDING_CONTACT);
+        ownerBotSender.exe(userId, AppConstant.SEND_CONTACT_NUMBER, buttonService.requestContact());
     }
 
     private void buyPermission(Message message) {

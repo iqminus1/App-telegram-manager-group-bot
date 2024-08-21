@@ -16,4 +16,5 @@ public interface ButtonService {
     ReplyKeyboard startButton(Long userId);
 
     ReplyKeyboard permissionCodeType();
+    ReplyKeyboard requestContact();
 }
