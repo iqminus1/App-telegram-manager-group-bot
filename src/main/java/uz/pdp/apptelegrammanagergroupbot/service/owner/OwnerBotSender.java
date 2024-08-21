@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -15,6 +16,14 @@ import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 public class OwnerBotSender extends DefaultAbsSender {
     public OwnerBotSender() {
         super(new DefaultBotOptions(), AppConstant.BOT_TOKEN);
+    }
+
+    public void deleteMessage(Long userId, Integer messageId) {
+        try {
+            execute(new DeleteMessage(userId.toString(),messageId));
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void exe(Long userId, String text, ReplyKeyboard keyboard) {

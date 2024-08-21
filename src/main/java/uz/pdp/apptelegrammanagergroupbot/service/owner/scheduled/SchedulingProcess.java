@@ -1,4 +1,4 @@
-package uz.pdp.apptelegrammanagergroupbot.scheduled;
+package uz.pdp.apptelegrammanagergroupbot.service.owner.scheduled;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
