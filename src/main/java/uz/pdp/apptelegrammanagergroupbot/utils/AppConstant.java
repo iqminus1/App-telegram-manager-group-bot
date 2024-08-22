@@ -96,4 +96,5 @@ public interface AppConstant {
     String SEND_TARIFF_ORDER = "Отправте какой оно должен по очереди показивать от 1 до ";
     String FIRST_OR_SECOND_ORDER = "Отправте тариф какой очереде был 1 или 2";
     String SEND_TARIFF_PRICE = "Отправте цену на пример 1000000";
+    String GENERATE_CODE_FOR_REQUEST = "Генерация код для вступления";
 }

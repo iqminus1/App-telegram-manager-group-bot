@@ -173,6 +173,7 @@ public class MessageServiceImpl implements MessageService {
             return;
         }
         try {
+            ownerBotSender.deleteKeyboard(userId);
             ownerBotSender.execute(sendMessage);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
@@ -219,7 +220,7 @@ public class MessageServiceImpl implements MessageService {
         }
         UserPermission userPermission = optionalUserPermission.get();
         userPermission.setBotUsername(message.getText());
-        userPermissionRepository.save(userPermission);
+        userPermissionRepository.saveOptional(userPermission);
         botController.addAdminBot(userPermission.getBotToken(), userPermission.getBotUsername(), userPermission.getUserId());
         commonUtils.setState(userId, StateEnum.START);
         ownerBotSender.exe(userId, AppConstant.BOT_TOKEN_COMPLETED, buttonService.startButton(userId));
@@ -234,7 +235,7 @@ public class MessageServiceImpl implements MessageService {
         }
         UserPermission userPermission = optionalUserPermission.get();
         userPermission.setContactNumber(contact.getPhoneNumber());
-        userPermissionRepository.save(userPermission);
+        userPermissionRepository.saveOptional(userPermission);
         commonUtils.setState(userId, StateEnum.START);
         message.setText(AppConstant.ADD_BOT_TOKEN);
         this.process(message);
@@ -248,7 +249,7 @@ public class MessageServiceImpl implements MessageService {
         }
         UserPermission userPermission = optionalUserPermission.get();
         userPermission.setBotToken(message.getText());
-        userPermissionRepository.save(userPermission);
+        userPermissionRepository.saveOptional(userPermission);
         commonUtils.setState(userId, StateEnum.ADMIN_SENDING_BOT_USERNAME);
         ownerBotSender.exe(userId, AppConstant.ADMIN_SENDING_BOT_USERNAME, null);
     }
@@ -295,9 +296,9 @@ public class MessageServiceImpl implements MessageService {
             }
             DontUsedCodePermission dontUsedCodePermission = first.get();
             CodePermission codePermission = new CodePermission(dontUsedCodePermission.getCreateBy(), userId, message.getFrom().getFirstName(), null, null, dontUsedCodePermission.getExpireMonth(), dontUsedCodePermission.getSizeRequests(), dontUsedCodePermission.getType(), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
-            codePermissionRepository.save(codePermission);
+            codePermissionRepository.saveOptional(codePermission);
             UserPermission userPermission = new UserPermission(userId, message.getFrom().getFirstName(), null, null, null, Timestamp.valueOf(LocalDateTime.now().plusMonths(dontUsedCodePermission.getExpireMonth())), dontUsedCodePermission.getSizeRequests(), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
-            userPermissionRepository.save(userPermission);
+            userPermissionRepository.saveOptional(userPermission);
             dontUsedCodePermissionRepository.delete(dontUsedCodePermission);
             commonUtils.setState(userId, StateEnum.START);
             ownerBotSender.exe(userId, AppConstant.PERMISSION_CODE_BUY_IS_VALID, buttonService.startButton(userId));
@@ -317,8 +318,8 @@ public class MessageServiceImpl implements MessageService {
         userPermission.setScreenshot(dontUsedCodePermission.isScreenshot());
         userPermission.setSizeRequests(dontUsedCodePermission.getSizeRequests());
         CodePermission codePermission = new CodePermission(dontUsedCodePermission.getCreateBy(), userId, message.getFrom().getFirstName(), null, null, dontUsedCodePermission.getExpireMonth(), dontUsedCodePermission.getSizeRequests(), dontUsedCodePermission.getType(), dontUsedCodePermission.isPayment(), dontUsedCodePermission.isCodeGeneration(), dontUsedCodePermission.isScreenshot());
-        codePermissionRepository.save(codePermission);
-        userPermissionRepository.save(userPermission);
+        codePermissionRepository.saveOptional(codePermission);
+        userPermissionRepository.saveOptional(userPermission);
         dontUsedCodePermissionRepository.delete(dontUsedCodePermission);
         commonUtils.setState(userId, StateEnum.START);
         ownerBotSender.exe(userId, AppConstant.PERMISSION_CODE_EXPLAINS_IS_VALID, buttonService.startButton(userId));
@@ -359,7 +360,7 @@ public class MessageServiceImpl implements MessageService {
         creatorCodeRepository.delete(optionalCreatorCode.get());
 
         Long userId = message.getFrom().getId();
-        creatorRepository.save(new Creator(userId));
+        creatorRepository.saveOptional(new Creator(userId));
         ownerBotSender.exe(userId, AppConstant.CHANGED_TO_CREATOR, null);
     }
 

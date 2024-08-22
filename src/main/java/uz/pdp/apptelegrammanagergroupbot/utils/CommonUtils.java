@@ -1,8 +1,11 @@
 package uz.pdp.apptelegrammanagergroupbot.utils;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.scheduling.annotation.EnableScheduling;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import uz.pdp.apptelegrammanagergroupbot.entity.User;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
@@ -12,13 +15,13 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
+@EnableScheduling
 @RequiredArgsConstructor
 @Component
 public class CommonUtils {
     public final ConcurrentMap<Long, User> users = new ConcurrentHashMap<>();
     private final UserRepository userRepository;
 
-    @Cacheable(value = "ownerBotUser", key = "#userId")
     public User getUser(Long userId) {
         if (users.containsKey(userId)) {
             return users.get(userId);
@@ -28,16 +31,24 @@ public class CommonUtils {
             users.put(userId, optional.get());
             return optional.get();
         }
-        User user = userRepository.save(new User(userId, StateEnum.START));
+        User user = userRepository.saveOptional(new User(userId, StateEnum.START)).get();
         users.put(userId, user);
         return user;
     }
 
-    @CachePut(value = "ownerBotUser", key = "#userId")
     public User setState(Long userId, StateEnum state) {
         User user = getUser(userId);
         user.setState(state);
         return user;
+    }
+
+    @Scheduled(cron = "0 0 4 * * ?")
+    public void clearUserList() {
+        for (Long userId : users.keySet()) {
+            User user = users.get(userId);
+            userRepository.saveOptional(user);
+        }
+        users.clear();
     }
 
 }

@@ -10,7 +10,7 @@ import uz.pdp.apptelegrammanagergroupbot.entity.Group;
 import uz.pdp.apptelegrammanagergroupbot.entity.JoinGroupRequest;
 import uz.pdp.apptelegrammanagergroupbot.entity.User;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
-import uz.pdp.apptelegrammanagergroupbot.repository.CodeRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.CodeGroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.repository.JoinGroupRequestRepository;
 
@@ -27,7 +27,7 @@ public class AdminMessageServiceImpl implements AdminMessageService {
     private final AdminBotSender adminBotSender;
     private final AdminButtonService adminButtonService;
     private final Temp temp;
-    private final CodeRepository codeRepository;
+    private final CodeGroupRepository codeGroupRepository;
 
     @Override
 
@@ -63,11 +63,11 @@ public class AdminMessageServiceImpl implements AdminMessageService {
             adminBotSender.exe(message.getFrom().getId(), AdminConstants.INVALID_CODE, showRequestLists(message.getFrom().getId(), adminId).getReplyMarkup());
             return;
         }
-        codeRepository.findByCodeAndGroupId(message.getText(), groupId).ifPresent(code -> {
+        codeGroupRepository.findByCodeAndGroupId(message.getText(), groupId).ifPresent(code -> {
             code.setActive(true);
             code.setActiveAt(new Timestamp(System.currentTimeMillis()));
             code.setUserId(message.getFrom().getId());
-            codeRepository.save(code);
+            codeGroupRepository.saveOptional(code);
             joinGroupRequestRepository.findByUserIdAndGroupId(message.getFrom().getId(), groupId).ifPresent(req -> {
                 adminBotSender.acceptJoinRequest(req);
                 joinGroupRequestRepository.delete(req);
@@ -88,17 +88,21 @@ public class AdminMessageServiceImpl implements AdminMessageService {
         List<Map<String, String>> list = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
         if (requests.isEmpty()) return new SendMessage();
-        sb.append("Список: ").append("\n");
+        sb.append("Список: ").append("\n\n");
+        int i = 1;
         for (JoinGroupRequest request : requests) {
-            sb.append("1. ").append(adminBotSender.getChatName(request.getGroupId())).append("\n");
+            if (requests.size() != 1) {
+                sb.append(i).append(". ");
+            }
+            sb.append(adminBotSender.getChatName(request.getGroupId())).append("\n");
             list.add(Map.of(
-                    AdminConstants.BUY_REQUEST_TEXT,
-                    AdminConstants.BUY_REQUEST_DATA + request.getId() + "+" + AdminConstants.GROUP_DATA + request.getGroupId(),
+                    AdminConstants.TARIFF_LIST_TEXT,
+                    AdminConstants.TARIFF_LIST_DATA + request.getId() + "+" + AdminConstants.GROUP_DATA + request.getGroupId(),
                     AdminConstants.DELETE_REQUEST_TEXT,
                     AdminConstants.DELETE_REQUEST_DATA + request.getId() + "+" + AdminConstants.GROUP_DATA + request.getGroupId()
             ));
         }
-        ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, true);
+        ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, requests.size() != 1);
         SendMessage sendMessage = new SendMessage();
         sendMessage.setText(sb.toString());
         sendMessage.setChatId(chatId);

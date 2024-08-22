@@ -8,8 +8,10 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
@@ -21,7 +23,7 @@ public class OwnerBotSender extends DefaultAbsSender {
 
     public void deleteMessage(Long userId, Integer messageId) {
         try {
-            execute(new DeleteMessage(userId.toString(),messageId));
+            execute(new DeleteMessage(userId.toString(), messageId));
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
@@ -38,6 +40,7 @@ public class OwnerBotSender extends DefaultAbsSender {
             throw new RuntimeException(e);
         }
     }
+
     public String getChatName(Long chatId) {
         GetChat getChat = new GetChat();
         getChat.setChatId(chatId);
@@ -67,6 +70,20 @@ public class OwnerBotSender extends DefaultAbsSender {
         editMessageReplyMarkup.setReplyMarkup(keyboardMarkup);
         try {
             execute(editMessageReplyMarkup);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void deleteKeyboard(Long userId) {
+        SendMessage sendMessage = new SendMessage();
+        sendMessage.setText(".");
+        sendMessage.setChatId(userId);
+        sendMessage.setReplyMarkup(new ReplyKeyboardRemove(true));
+        try {
+            Message execute = execute(sendMessage);
+            Integer messageId = execute.getMessageId();
+            deleteMessage(userId, messageId);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }

@@ -33,7 +33,7 @@ public class JoinRequestServiceImpl implements JoinRequestService {
         sendMessage.setReplyMarkup(replyKeyboard);
         try {
             botSender.execute(sendMessage);
-            joinGroupRequestRepository.save(new JoinGroupRequest(userId, chatJoinRequest.getChat().getId(), null));
+            joinGroupRequestRepository.saveOptional(new JoinGroupRequest(userId, chatJoinRequest.getChat().getId(), null));
         } catch (TelegramApiException e) {
             botSender.acceptJoinRequest(userId, chatJoinRequest.getChat().getId());
             botSender.revokeJoinRequest(userId, chatJoinRequest.getChat().getId());
