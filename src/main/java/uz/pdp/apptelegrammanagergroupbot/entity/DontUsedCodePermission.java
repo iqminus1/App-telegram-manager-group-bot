@@ -7,6 +7,7 @@ import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
 @AllArgsConstructor
@@ -15,7 +16,7 @@ import java.sql.Timestamp;
 @Getter
 @ToString
 @Entity
-public class DontUsedCodePermission extends AbsLongEntity {
+public class DontUsedCodePermission extends AbsLongEntity implements Serializable {
     private Long createBy;
 
     private String code;

@@ -1,7 +1,9 @@
 package uz.pdp.apptelegrammanagergroupbot.service.owner;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
@@ -9,24 +11,33 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import uz.pdp.apptelegrammanagergroupbot.entity.DontUsedCodePermission;
+import uz.pdp.apptelegrammanagergroupbot.entity.Group;
 import uz.pdp.apptelegrammanagergroupbot.entity.UserPermission;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.repository.*;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class ButtonServiceImpl implements ButtonService {
     private final UserPermissionRepository userPermissionRepository;
     private final GroupRepository groupRepository;
     private final CodePermissionRepository codePermissionRepository;
     private final DontUsedCodePermissionRepository dontUsedCodePermissionRepository;
     private final CreatorRepository creatorRepository;
+    private final OwnerBotSender ownerBotSender;
+    private final MessageService messageService;
+
+    public ButtonServiceImpl(UserPermissionRepository userPermissionRepository, GroupRepository groupRepository, CodePermissionRepository codePermissionRepository, DontUsedCodePermissionRepository dontUsedCodePermissionRepository, CreatorRepository creatorRepository, OwnerBotSender ownerBotSender, @Lazy MessageService messageService) {
+        this.userPermissionRepository = userPermissionRepository;
+        this.groupRepository = groupRepository;
+        this.codePermissionRepository = codePermissionRepository;
+        this.dontUsedCodePermissionRepository = dontUsedCodePermissionRepository;
+        this.creatorRepository = creatorRepository;
+        this.ownerBotSender = ownerBotSender;
+        this.messageService = messageService;
+    }
 
     @Override
     public ReplyKeyboard withString(List<String> list, int rowSize) {
@@ -122,15 +133,6 @@ public class ButtonServiceImpl implements ButtonService {
                 list.add(AppConstant.ADD_BOT_TOKEN);
             else list.add(AppConstant.CHANGE_BOT_TOKEN);
 
-//            if (optionalUserPermission.get().isCode())
-//                list.add(AppConstant.GENERATE_CODE_FOR_REQUEST);
-
-//            if (optionalUserPermission.get().isScreenshot())
-//                list.add(AppConstant.SEE_ALL_SCREENSHOTS);
-
-//            if (optionalUserPermission.get().isPayment())
-//                list.add(AppConstant.VIEW_STATS);
-
             list.add(AppConstant.EXTENSION_OF_RIGHT);
         } else
             list.add(AppConstant.BUY_PERMISSION);
@@ -196,5 +198,59 @@ public class ButtonServiceImpl implements ButtonService {
         if (addBack)
             list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
         return this.callbackKeyboard(list, 1, false);
+    }
+
+    @Override
+    public SendMessage getGroupSettings(Long userId) {
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty()) {
+            ownerBotSender.exe(userId, AppConstant.HAVE_NOT_PERMISSION, startButton(userId));
+            return null;
+        }
+        UserPermission userPermission = optionalUserPermission.get();
+        if (!checkString(userPermission.getBotToken()) || !checkString(userPermission.getBotUsername())) {
+            ownerBotSender.exe(userId, AppConstant.FULLY_SEND_BOT_TOKEN_OR_USERNAME, null);
+            return null;
+        }
+        List<Group> groups = groupRepository.findAllByOwnerId(userId);
+        if (groups.isEmpty()) {
+            ownerBotSender.exe(userId, AppConstant.BOT_NOT_FOLLOW_ANY_GROUPS, startButton(userId));
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("Ващ список: ").append("\n\n");
+        int i = 1;
+        List<Map<String, String>> list = new ArrayList<>();
+        for (Group group : groups) {
+            Map<String, String> map = new HashMap<>();
+            String groupName = ownerBotSender.getChatName(group.getGroupId());
+            sb.append(i).append(". ").append(groupName);
+            map.put(groupName, AppConstant.SHOW_GROUP_INFO + group.getGroupId());
+            sb.append("\n").append("-----------").append("\n");
+//            map.put(AppConstant.MANAGE_GROUP_PRICE_TEXT,
+//                    AppConstant.MANAGE_GROUP_PRICE_DATA);
+//
+//            if (group.isCode()) {
+//                map.put(AppConstant.GENERATE_CODE_FOR_REQUEST_TEXT,
+//                        AppConstant.GENERATE_CODE_FOR_REQUEST_DATA);
+//            }
+//            if (group.isScreenShot()) {
+//                if (checkString(group.getCardNumber())) {
+//                    map.put(AppConstant.SHOW_SCREENSHOTS_TEXT,
+//                            AppConstant.SHOW_SCREENSHOTS_DATA);
+//                }
+//                map.put(AppConstant.ADD_CARD_NUMBER_TEXT,
+//                        AppConstant.ADD_CARD_NUMBER_DATA);
+//            }
+            list.add(map);
+        }
+//        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
+        ReplyKeyboard replyKeyboard = callbackKeyboard(list, 1, true);
+        SendMessage sendMessage = new SendMessage(userId.toString(), sb.toString());
+        sendMessage.setReplyMarkup(replyKeyboard);
+        return sendMessage;
+    }
+    private boolean checkString(String str) {
+        return str != null && !str.isEmpty() && !str.isBlank();
     }
 }

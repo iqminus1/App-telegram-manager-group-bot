@@ -3,7 +3,9 @@ package uz.pdp.apptelegrammanagergroupbot.service.admin.www;
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import uz.pdp.apptelegrammanagergroupbot.entity.Group;
 import uz.pdp.apptelegrammanagergroupbot.entity.Tariff;
 import uz.pdp.apptelegrammanagergroupbot.entity.User;
@@ -95,7 +97,7 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
     }
 
     private void deleteRequest(CallbackQuery callbackQuery, Long adminId) {
-        Long requestId = Long.parseLong(callbackQuery.getData().split(":")[1]);
+        Long requestId = Long.parseLong(callbackQuery.getData().split("\\+")[0].split(":")[1]);
         joinGroupRequestRepository.deleteById(requestId);
         refreshRequestList(callbackQuery, adminId);
 
@@ -105,6 +107,11 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         SendMessage sendMessage = adminMessageService.showRequestLists(callbackQuery.getFrom().getId(), adminId);
         if (sendMessage == null) {
             adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            return;
+        }
+        if (sendMessage.getReplyMarkup() == null || ((InlineKeyboardMarkup) sendMessage.getReplyMarkup()).getKeyboard().isEmpty()) {
+            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            adminBotSender.exe(callbackQuery.getFrom().getId(), AdminConstants.HAVE_NOT_ANY_REQUESTS, new ReplyKeyboardRemove(true));
             return;
         }
         adminBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), sendMessage.getText());
@@ -128,7 +135,7 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         }
         StringBuilder sb = new StringBuilder();
         sb.append("Все тарифы:");
-        tariffs.sort(Comparator.comparing(Tariff::getOrderBy));
+        Collections.sort(tariffs);
         List<Map<String, String>> list = new ArrayList<>();
         int i = 1;
         for (Tariff tariff : tariffs) {

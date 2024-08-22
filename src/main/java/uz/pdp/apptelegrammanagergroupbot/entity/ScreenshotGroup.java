@@ -6,6 +6,7 @@ import org.hibernate.annotations.SQLRestriction;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 import uz.pdp.apptelegrammanagergroupbot.enums.ScreenshotStatus;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
 @AllArgsConstructor
@@ -15,7 +16,7 @@ import java.sql.Timestamp;
 @ToString
 @Entity
 @SQLRestriction("active = false")
-public class ScreenshotGroup extends AbsLongEntity {
+public class ScreenshotGroup extends AbsLongEntity implements Serializable {
     private Long groupId;
 
     private Long sendUserId;

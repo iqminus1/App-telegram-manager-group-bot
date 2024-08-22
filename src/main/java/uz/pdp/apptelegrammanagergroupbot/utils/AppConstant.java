@@ -2,6 +2,7 @@ package uz.pdp.apptelegrammanagergroupbot.utils;
 
 public interface AppConstant {
     String ABOUT_BOT = "О нас";
+    String EXCEPTION = "Какойто ощибка";
     String ABOUT_US_TEXT = "Создатели должни паполнит анкуте";
     String BOT_TOKEN = "7526831468:AAFTZllAKdDJEhih22K-gcyUja4Da_pE_54";
     String BOT_USERNAME = "manager_group_father_bot";
@@ -13,7 +14,7 @@ public interface AppConstant {
     String ADD_BOT_TOKEN = "Добавить токен";
     String USE_CODE = "Использовать код";
     String GENERATE_CODE_FOR_PERMISSION = "Генерация код";
-    String GENERATE_CODE_FOR_REQUEST = "Генерация код для вступления";
+    String GENERATE_CODE_FOR_REQUEST_TEXT = "Генерация код для вступления";
     String SEE_ALL_SCREENSHOTS = "Смотреть всех отправлен фото";
     String VIEW_STATS = "Смотреть статистику";
     String CHANGED_TO_CREATOR = "Тепер вы создатель ";
@@ -40,7 +41,7 @@ public interface AppConstant {
     String ONE_YEAR = "Для год";
     String MONTH_DATA = "expireDay:";
     String SELECT_ANY_EXPIRE = "Выберите который вам нужно";
-    String BACK_TEXT = "Назад";
+    String BACK_TEXT = "Назад\uD83D\uDD19";
     String BACK_DATA = "back:";
     String GETTING_CODE = "Вот ващ код ";
     String SEND_CODE_TEXT = "Отправте пороля";
@@ -62,4 +63,37 @@ public interface AppConstant {
     String BOT_TOKEN_COMPLETED = "Вы успещно закончили";
     String SIZE_OF_REQUESTS = "Отправте сколько запросов бот должен контролировать на месяц";
     String GENERATE_INVOICE = "Генерация инвойса";
+    String HAVE_NOT_PERMISSION = "У вас нет доступ чтобы управлять группами который бот подписан";
+    String BOT_NOT_FOLLOW_ANY_GROUPS = "Если бот подписан на канал или групп выгнат нужно и добавить занаво потому у нас не выдно каналах или групп. Если нет то добавте групп который он должен контролировать";
+    String FULLY_SEND_BOT_TOKEN_OR_USERNAME = "Вам нужно написать токен бота или username бота. Жмите кнопку который написан что то с токенам";
+    String GENERATE_CODE_FOR_REQUEST_DATA = "generateCodeForGroup:";
+    String ADD_CARD_NUMBER_TEXT = "\uD83D\uDCB3";
+    String ADD_CARD_NUMBER_DATA = "addCardNumberGroupId:";
+    String SHOW_SCREENSHOTS_TEXT = "Показать отправленный оплаты";
+
+    String SHOW_SCREENSHOTS_DATA = "showScreenShotGroupId:";
+    String MANAGE_GROUP_PRICE_TEXT = "Конртол ценам";
+    String MANAGE_GROUP_PRICE_DATA = "managePriceGroupId:";
+    String SHOW_GROUP_INFO = "showInfoGroupId:";
+    String OFF_PAYMENT_TEXT = "Режим оплата payme и click";
+    String ON_PAYMENT_TEXT = "Режим оплата payme и click";
+    String OFF_CODE_GENERATION = "Режим генерация кода";
+    String ON_CODE_GENERATION = "Режим генерация кода";
+    String OFF_SCREENSHOT = "Режим оплата на карту";
+    String ON_SCREENSHOT = "Режим оплата на карту";
+    String MANAGE_GROUP_PAYMENT_TEXT = "Настроит режим оплата";
+    String MANAGE_GROUP_PAYMENT_DATA = "managePaymentGroupId:";
+    String SELECT_CHOOSE = "Выберите который вам нужно:";
+    String FOR_OFF = "Отключить";
+    String FOR_ON = "Включить";
+    String TARIFF_DATA = "tariff:";
+    String GROUP_DATA = "groupId:";
+    String ADD_TARIFF_TEXT = "Добавить тариф";
+    String ADD_TARIFF_DATA = "addTariff:";
+
+    String SEND_TARIFF_NAME = "Отправте названия тарифа";
+    String SEND_TARIFF_EXPIRE = "Отправте оно за сколько дней";
+    String SEND_TARIFF_ORDER = "Отправте какой оно должен по очереди показивать от 1 до ";
+    String FIRST_OR_SECOND_ORDER = "Отправте тариф какой очереде был 1 или 2";
+    String SEND_TARIFF_PRICE = "Отправте цену на пример 1000000";
 }

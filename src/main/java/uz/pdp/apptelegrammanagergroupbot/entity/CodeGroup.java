@@ -5,6 +5,7 @@ import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
 @AllArgsConstructor
@@ -14,7 +15,7 @@ import java.sql.Timestamp;
 @ToString
 @Entity
 @SQLRestriction("active = false")
-public class CodeGroup extends AbsLongEntity {
+public class CodeGroup extends AbsLongEntity implements Serializable {
     private String code;
 
     private Long groupId;

@@ -2,15 +2,19 @@ package uz.pdp.apptelegrammanagergroupbot.service.owner;
 
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Contact;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import uz.pdp.apptelegrammanagergroupbot.entity.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.*;
 import uz.pdp.apptelegrammanagergroupbot.service.admin.BotController;
+import uz.pdp.apptelegrammanagergroupbot.service.admin.www.Temp;
 import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
@@ -37,6 +41,9 @@ public class MessageServiceImpl implements MessageService {
     private final CodePermissionRepository codePermissionRepository;
     private final CallbackService callbackService;
     private final BotController botController;
+    private final TariffRepository tariffRepository;
+    private final Temp temp;
+    private final GroupRepository groupRepository;
 
     @Override
     public void process(Message message) {
@@ -61,6 +68,8 @@ public class MessageServiceImpl implements MessageService {
                     aboutUs(message);
                 } else if (List.of(AppConstant.BUY_PERMISSION, AppConstant.EXTENSION_OF_RIGHT).contains(text)) {
                     buyOrExtensionPermission(message);
+                } else if (text.equals(AppConstant.GROUP_SETTINGS)) {
+                    groupSettings(message);
                 }
             } else if (user.getState().equals(StateEnum.USE_CODE)) {
                 checkPermissionCodeAndActivate(message);
@@ -72,6 +81,14 @@ public class MessageServiceImpl implements MessageService {
                 setSizeOfRequestGenCode(message);
             } else if (user.getState().equals(StateEnum.ADMIN_SENDING_SIZE_OF_REQUESTS)) {
                 setAdminSizeOfRequests(message);
+            } else if (user.getState().equals(StateEnum.SENDING_TARIFF_NAME)) {
+                setTariffName(message);
+            } else if (user.getState().equals(StateEnum.SENDING_TARIFF_ORDER)) {
+                setTariffOrder(message);
+            } else if (user.getState().equals(StateEnum.SENDING_TARIFF_EXPIRE)) {
+                setTariffExpire(message);
+            } else if ((user.getState().equals(StateEnum.SENDING_TARIFF_PRICE))) {
+                setTariffPrice(message);
             }
         } else if (message.hasPhoto()) {
             if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
@@ -81,6 +98,90 @@ public class MessageServiceImpl implements MessageService {
                 sendingContact(message);
             }
         }
+    }
+
+    private void setTariffPrice(Message message) {
+        Long userId = message.getFrom().getId();
+        Tariff tempTariff = tempData.getTempTariff(userId);
+        tempTariff.setPrice(Long.parseLong(message.getText()));
+        Optional<Group> optional = groupRepository.findByGroupId(tempTariff.getGroup().getGroupId());
+        if (optional.isEmpty()) {
+            commonUtils.setState(userId, StateEnum.START);
+            ownerBotSender.exe(userId, AppConstant.EXCEPTION, buttonService.startButton(message.getFrom().getId()));
+            return;
+        }
+        List<Tariff> tariffs = optional.get().getTariffs();
+        tariffs.stream().filter(tariff -> tariff.getOrderBy() >= tempTariff.getOrderBy()).forEach(tariff -> tariff.setOrderBy(tariff.getOrderBy() + 1));
+        tariffRepository.saveAll(tariffs);
+        tariffRepository.save(tempTariff);
+        commonUtils.setState(userId, StateEnum.SETTINGS_GROUP);
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setFrom(message.getFrom());
+        callbackQuery.setData(AppConstant.MANAGE_GROUP_PRICE_DATA + tempTariff.getGroup().getGroupId());
+        callbackService.process(callbackQuery);
+    }
+
+    private void setTariffOrder(Message message) {
+        Long userId = message.getFrom().getId();
+        int order = Integer.parseInt(message.getText());
+        Tariff tempTariff = tempData.getTempTariff(userId);
+        if (0 < order && order < tempTariff.getGroup().getTariffs().size() + 2) {
+            tempTariff.setOrderBy(order);
+            commonUtils.setState(userId, StateEnum.SENDING_TARIFF_EXPIRE);
+            ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_EXPIRE, null);
+            return;
+        }
+        ownerBotSender.exe(userId, "Не сработала еще раз отправте", null);
+
+    }
+
+    private void setTariffExpire(Message message) {
+        Long userId = message.getFrom().getId();
+        String text = message.getText();
+        Tariff tempTariff = tempData.getTempTariff(userId);
+        tempTariff.setDays(Integer.parseInt(text));
+        commonUtils.setState(userId, StateEnum.SENDING_TARIFF_PRICE);
+        ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_PRICE, null);
+    }
+
+    private void setTariffName(Message message) {
+        String text = message.getText();
+        Long userId = message.getFrom().getId();
+        Tariff tempTariff = tempData.getTempTariff(userId);
+        tempTariff.setName(text);
+        List<Tariff> tariffs = tempTariff.getGroup().getTariffs();
+        if (tariffs.isEmpty()) {
+            tempTariff.setOrderBy(1);
+            commonUtils.setState(userId, StateEnum.SENDING_TARIFF_EXPIRE);
+            ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_EXPIRE, null);
+            return;
+        }
+        commonUtils.setState(userId, StateEnum.SENDING_TARIFF_ORDER);
+        if (tariffs.size() == 1) {
+            ownerBotSender.exe(userId, AppConstant.FIRST_OR_SECOND_ORDER, null);
+            return;
+        }
+        ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_ORDER + tariffs.size() + 1, null);
+    }
+
+    private void groupSettings(Message message) {
+        Long userId = message.getFrom().getId();
+        commonUtils.setState(userId, StateEnum.SETTINGS_GROUP);
+        SendMessage sendMessage = buttonService.getGroupSettings(userId);
+        if (sendMessage == null) {
+            commonUtils.setState(userId, StateEnum.START);
+            return;
+        }
+        try {
+            ownerBotSender.execute(sendMessage);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+
+    private boolean checkString(String str) {
+        return str != null && !str.isEmpty() && !str.isBlank();
     }
 
     private void setAdminSizeOfRequests(Message message) {

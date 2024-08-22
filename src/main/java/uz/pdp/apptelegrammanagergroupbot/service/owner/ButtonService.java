@@ -1,5 +1,6 @@
 package uz.pdp.apptelegrammanagergroupbot.service.owner;
 
+import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 
@@ -18,4 +19,5 @@ public interface ButtonService {
     ReplyKeyboard permissionCodeType();
     ReplyKeyboard requestContact();
     ReplyKeyboard generateKeyboardPermissionStatus(boolean bool1, boolean bool2, boolean bool3, boolean addBack);
+    SendMessage getGroupSettings(Long userId);
 }
