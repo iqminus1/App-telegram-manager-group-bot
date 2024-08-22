@@ -1,10 +1,12 @@
 package uz.pdp.apptelegrammanagergroupbot.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.OneToMany;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 
+import java.io.Serializable;
 import java.util.List;
 
 @AllArgsConstructor
@@ -13,7 +15,7 @@ import java.util.List;
 @Setter
 @ToString
 @Entity(name = "groups")
-public class Group extends AbsLongEntity {
+public class Group extends AbsLongEntity implements Serializable {
     private Long ownerId;
 
     private Long groupId;
@@ -26,7 +28,7 @@ public class Group extends AbsLongEntity {
 
     private boolean screenShot;
 
-    @OneToMany(mappedBy = "groupId")
+    @OneToMany(mappedBy = "group",fetch = FetchType.EAGER)
     @ToString.Exclude
     private List<Tariff> tariffs;
 }

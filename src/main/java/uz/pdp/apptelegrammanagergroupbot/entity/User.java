@@ -7,6 +7,7 @@ import jakarta.persistence.Id;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 @AllArgsConstructor
@@ -15,7 +16,7 @@ import java.util.Objects;
 @Getter
 @ToString
 @Entity(name = "users")
-public class User {
+public class User implements Serializable {
     @Id
     private Long id;
 

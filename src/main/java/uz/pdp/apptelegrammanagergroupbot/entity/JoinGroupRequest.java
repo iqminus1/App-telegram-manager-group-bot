@@ -5,13 +5,15 @@ import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 import uz.pdp.apptelegrammanagergroupbot.enums.JoinTypeEnum;
 
+import java.io.Serializable;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
 @ToString
 @Entity
-public class JoinGroupRequest extends AbsLongEntity {
+public class JoinGroupRequest extends AbsLongEntity implements Serializable {
     private Long userId;
 
     private Long groupId;

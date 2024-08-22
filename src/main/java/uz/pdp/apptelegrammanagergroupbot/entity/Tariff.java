@@ -1,9 +1,10 @@
 package uz.pdp.apptelegrammanagergroupbot.entity;
-
 import jakarta.persistence.Entity;
 import jakarta.persistence.ManyToOne;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
+
+import java.io.Serializable;
 
 @AllArgsConstructor
 @NoArgsConstructor
@@ -11,9 +12,9 @@ import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 @Getter
 @ToString
 @Entity
-public class Tariff extends AbsLongEntity {
+public class Tariff extends AbsLongEntity implements Serializable, Comparable<Tariff> {
     @ManyToOne
-    private Group groupId;
+    private Group group;
 
     private String name;
 
@@ -22,4 +23,9 @@ public class Tariff extends AbsLongEntity {
     private Long price;
 
     private Integer orderBy;
+
+    @Override
+    public int compareTo(Tariff other) {
+        return this.orderBy.compareTo(other.orderBy);
+    }
 }

@@ -4,13 +4,15 @@ import jakarta.persistence.Entity;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 
+import java.io.Serializable;
+
 @AllArgsConstructor
 @NoArgsConstructor
 @Setter
 @Getter
 @ToString
 @Entity
-public class PaymentUnBot extends AbsLongEntity {
+public class PaymentUnBot extends AbsLongEntity implements Serializable {
     private Long userId;
 
     private Long groupId;

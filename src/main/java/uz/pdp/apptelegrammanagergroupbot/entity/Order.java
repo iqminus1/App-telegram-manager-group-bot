@@ -4,6 +4,7 @@ import jakarta.persistence.Entity;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
 
+import java.io.Serializable;
 import java.sql.Timestamp;
 
 @AllArgsConstructor
@@ -12,7 +13,7 @@ import java.sql.Timestamp;
 @Getter
 @ToString
 @Entity(name = "orders")
-public class Order extends AbsLongEntity {
+public class Order extends AbsLongEntity implements Serializable {
     private Long userId;
 
     private Long groupId;
