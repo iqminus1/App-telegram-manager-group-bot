@@ -10,3 +10,6 @@ spring:
     show-sql: true
     hibernate:
       ddl-auto: update
+  cache:
+    redis:
+      time-to-live: 8h

@@ -6,8 +6,8 @@ public interface AdminConstants {
     String SHOW_PRICE = "Узнать о цене";
     String HAVE_NOT_ANY_REQUESTS = "У вас нет не одного запроса который бот на ответе";
     String START = "Здраствуйте";
-    String BUY_REQUEST_TEXT = "Купит";
-    String BUY_REQUEST_DATA = "buyRequest:";
+    String TARIFF_LIST_TEXT = "Все тарифи";
+    String TARIFF_LIST_DATA = "tariffList:";
     String GROUP_DATA = "groupId:";
     String ABOUT_PRICE_REQUEST_TEXT = "О цене";
     String ABOUT_PRICE_REQUEST_DATA = "aboutPrice:";

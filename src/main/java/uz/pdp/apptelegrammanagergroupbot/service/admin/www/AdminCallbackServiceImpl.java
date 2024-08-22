@@ -30,8 +30,8 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
     public void process(CallbackQuery callbackQuery, Long adminId) {
         User user = adminUserState.getUser(callbackQuery.getFrom().getId());
         String data = callbackQuery.getData();
-        if (data.startsWith(AdminConstants.BUY_REQUEST_DATA))
-            buyRequest(callbackQuery);
+        if (data.startsWith(AdminConstants.TARIFF_LIST_DATA))
+            tariffList(callbackQuery);
         else if (data.startsWith(AdminConstants.DELETE_REQUEST_DATA))
             deleteRequest(callbackQuery, adminId);
         else if (data.startsWith(AdminConstants.TARIFF_ID_DATA))
@@ -93,7 +93,16 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         if (group.isScreenShot()) {
             list.add(Map.of(AdminConstants.SCREENSHOT_TEXT, AdminConstants.SCREENSHOT_DATA + callbackQuery.getData()));
         }
-        adminButtonService.callbackKeyboard(list, 1, false);
+        if (list.isEmpty()) {
+            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            adminUserState.setState(callbackQuery.getFrom().getId(), StateEnum.START);
+            adminBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.EXCEPTION, null);
+            return;
+        }
+        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + "toTariffs" + callbackQuery.getData()));
+        ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
+        adminBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), AppConstant.SELECT_CHOOSE);
+        adminBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), replyKeyboard);
     }
 
     private void deleteRequest(CallbackQuery callbackQuery, Long adminId) {
@@ -118,7 +127,7 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         adminBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), sendMessage.getReplyMarkup());
     }
 
-    private void buyRequest(CallbackQuery callbackQuery) {
+    private void tariffList(CallbackQuery callbackQuery) {
         String data = callbackQuery.getData();
         String[] split = data.split("\\+");
         Long groupId = Long.parseLong(split[1].split(":")[1]);
@@ -134,14 +143,15 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
             return;
         }
         StringBuilder sb = new StringBuilder();
-        sb.append("Все тарифы:");
+        sb.append("Все тарифы:").append("\n\n");
         Collections.sort(tariffs);
         List<Map<String, String>> list = new ArrayList<>();
         int i = 1;
         for (Tariff tariff : tariffs) {
-            sb.append(i).append(". ").append(tariff.getName());
+            sb.append(i).append(". ").append(tariff.getName()).append("\n\n");
             list.add(Map.of(i + ". " + tariff.getName(),
                     AdminConstants.TARIFF_ID_DATA + tariff.getId() + "+" + data));
+            i++;
         }
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
         ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);

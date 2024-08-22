@@ -1,7 +1,6 @@
 package uz.pdp.apptelegrammanagergroupbot.service.owner;
 
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -14,30 +13,23 @@ import uz.pdp.apptelegrammanagergroupbot.entity.DontUsedCodePermission;
 import uz.pdp.apptelegrammanagergroupbot.entity.Group;
 import uz.pdp.apptelegrammanagergroupbot.entity.UserPermission;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
-import uz.pdp.apptelegrammanagergroupbot.repository.*;
+import uz.pdp.apptelegrammanagergroupbot.repository.CreatorRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.DontUsedCodePermissionRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.UserPermissionRepository;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
 import java.util.*;
 
 @Service
+@RequiredArgsConstructor
 public class ButtonServiceImpl implements ButtonService {
     private final UserPermissionRepository userPermissionRepository;
     private final GroupRepository groupRepository;
-    private final CodePermissionRepository codePermissionRepository;
     private final DontUsedCodePermissionRepository dontUsedCodePermissionRepository;
     private final CreatorRepository creatorRepository;
     private final OwnerBotSender ownerBotSender;
-    private final MessageService messageService;
 
-    public ButtonServiceImpl(UserPermissionRepository userPermissionRepository, GroupRepository groupRepository, CodePermissionRepository codePermissionRepository, DontUsedCodePermissionRepository dontUsedCodePermissionRepository, CreatorRepository creatorRepository, OwnerBotSender ownerBotSender, @Lazy MessageService messageService) {
-        this.userPermissionRepository = userPermissionRepository;
-        this.groupRepository = groupRepository;
-        this.codePermissionRepository = codePermissionRepository;
-        this.dontUsedCodePermissionRepository = dontUsedCodePermissionRepository;
-        this.creatorRepository = creatorRepository;
-        this.ownerBotSender = ownerBotSender;
-        this.messageService = messageService;
-    }
 
     @Override
     public ReplyKeyboard withString(List<String> list, int rowSize) {
@@ -128,10 +120,18 @@ public class ButtonServiceImpl implements ButtonService {
         Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
 
         if (optionalUserPermission.isPresent()) {
-            String botToken = optionalUserPermission.get().getBotToken();
+            UserPermission userPermission = optionalUserPermission.get();
+            String botToken = userPermission.getBotToken();
             if (botToken == null || botToken.isEmpty() || botToken.isBlank())
                 list.add(AppConstant.ADD_BOT_TOKEN);
             else list.add(AppConstant.CHANGE_BOT_TOKEN);
+
+            if (userPermission.isCode()) {
+                list.add(AppConstant.GENERATE_CODE_FOR_REQUEST);
+            }
+            if (userPermission.isScreenshot()) {
+                list.add(AppConstant.SEE_ALL_SCREENSHOTS);
+            }
 
             list.add(AppConstant.EXTENSION_OF_RIGHT);
         } else
@@ -250,6 +250,7 @@ public class ButtonServiceImpl implements ButtonService {
         sendMessage.setReplyMarkup(replyKeyboard);
         return sendMessage;
     }
+
     private boolean checkString(String str) {
         return str != null && !str.isEmpty() && !str.isBlank();
     }

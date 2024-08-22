@@ -112,7 +112,7 @@ public class CallbackServiceImpl implements CallbackService {
             case "Code" -> group.setCode(!group.isCode());
             case "Screenshot" -> group.setScreenShot(!group.isScreenShot());
         }
-        groupRepository.save(group);
+        groupRepository.saveOptional(group);
         callbackQuery.setData(AppConstant.MANAGE_GROUP_PAYMENT_DATA + groupId);
         showGroupPaymentInfo(callbackQuery);
     }
@@ -319,7 +319,7 @@ public class CallbackServiceImpl implements CallbackService {
         Long userId = callbackQuery.getFrom().getId();
         DontUsedCodePermission dontUsedCodePermission = tempData.getTempCode(userId);
         dontUsedCodePermission.setCreatedDate(new Timestamp(System.currentTimeMillis()));
-        dontUsedCodePermissionRepository.save(dontUsedCodePermission);
+        dontUsedCodePermissionRepository.saveOptional(dontUsedCodePermission);
         tempData.removeTempDataByUser(userId);
         commonUtils.setState(userId, StateEnum.START);
         ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());

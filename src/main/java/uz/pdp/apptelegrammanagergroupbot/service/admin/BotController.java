@@ -13,14 +13,14 @@ public class BotController {
     private final AdminButtonService adminButtonService;
     private final GroupRepository groupRepository;
     private final UserRepository userRepository;
-    private final CodeRepository codeRepository;
+    private final CodeGroupRepository codeGroupRepository;
     private final ChatMemberService chatMemberService;
 
     public void addAdminBot(String token, String username, Long userId) {
         AdminBotSender botSender = new AdminBotSender(token);
         Temp temp = new Temp();
         AdminUserState adminUserState = new AdminUserState(userRepository);
-        AdminMessageService adminMessageService = new AdminMessageServiceImpl(adminUserState, joinGroupRequestRepository, groupRepository, botSender, adminButtonService, temp, codeRepository);
+        AdminMessageService adminMessageService = new AdminMessageServiceImpl(adminUserState, joinGroupRequestRepository, groupRepository, botSender, adminButtonService, temp, codeGroupRepository);
         AdminCallbackService adminCallbackService = new AdminCallbackServiceImpl(adminUserState, groupRepository, botSender, adminButtonService, joinGroupRequestRepository, adminMessageService);
         JoinRequestService joinRequestService = new JoinRequestServiceImpl(botSender, joinGroupRequestRepository, adminButtonService, adminButtonService, adminUserState);
         new AdminBot(token, username, userId, userPermissionRepository, botSender, joinGroupRequestRepository, joinRequestService, chatMemberService, adminMessageService, adminCallbackService);
