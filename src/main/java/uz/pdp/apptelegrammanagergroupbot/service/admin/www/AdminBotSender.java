@@ -43,11 +43,11 @@ public class AdminBotSender extends DefaultAbsSender {
     }
 
     public void acceptJoinRequest(Long userId, Long groupId) {
-        acceptJoinRequest(new JoinGroupRequest(userId, groupId, null));
+        acceptJoinRequest(new JoinGroupRequest(userId, groupId));
     }
 
     public void revokeJoinRequest(Long userId, Long groupId) {
-        revokeJoinRequest(new JoinGroupRequest(userId, groupId, null));
+        revokeJoinRequest(new JoinGroupRequest(userId, groupId));
     }
 
     public void revokeJoinRequest(JoinGroupRequest joinRequest) {
