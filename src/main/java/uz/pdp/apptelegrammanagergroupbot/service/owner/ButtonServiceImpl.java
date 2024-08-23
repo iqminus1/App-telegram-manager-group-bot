@@ -223,29 +223,17 @@ public class ButtonServiceImpl implements ButtonService {
         List<Map<String, String>> list = new ArrayList<>();
         for (Group group : groups) {
             Map<String, String> map = new HashMap<>();
-            String groupName = ownerBotSender.getChatName(group.getGroupId());
-            sb.append(i).append(". ").append(groupName);
-            map.put(groupName, AppConstant.SHOW_GROUP_INFO + group.getGroupId());
+            if (groups.size() != 1)
+                sb.append(i++).append(". ");
+            sb.append(group.getName());
+            map.put(group.getName(), AppConstant.SHOW_GROUP_INFO + group.getGroupId());
             sb.append("\n").append("-----------").append("\n");
-//            map.put(AppConstant.MANAGE_GROUP_PRICE_TEXT,
-//                    AppConstant.MANAGE_GROUP_PRICE_DATA);
-//
-//            if (group.isCode()) {
-//                map.put(AppConstant.GENERATE_CODE_FOR_REQUEST_TEXT,
-//                        AppConstant.GENERATE_CODE_FOR_REQUEST_DATA);
-//            }
-//            if (group.isScreenShot()) {
-//                if (checkString(group.getCardNumber())) {
-//                    map.put(AppConstant.SHOW_SCREENSHOTS_TEXT,
-//                            AppConstant.SHOW_SCREENSHOTS_DATA);
-//                }
-//                map.put(AppConstant.ADD_CARD_NUMBER_TEXT,
-//                        AppConstant.ADD_CARD_NUMBER_DATA);
-//            }
             list.add(map);
         }
-//        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
-        ReplyKeyboard replyKeyboard = callbackKeyboard(list, 1, true);
+        if (groups.size() != 1) {
+            list.add(Map.of(AppConstant.CHANGE_TO_ONE_CARD_TEXT, AppConstant.CHANGE_TO_ONE_CARD_DATA));
+        }
+        ReplyKeyboard replyKeyboard = callbackKeyboard(list, 1, false);
         SendMessage sendMessage = new SendMessage(userId.toString(), sb.toString());
         sendMessage.setReplyMarkup(replyKeyboard);
         return sendMessage;

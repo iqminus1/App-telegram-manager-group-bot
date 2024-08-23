@@ -17,12 +17,14 @@ public class TempData {
     private final Map<Long, DontUsedCodePermission> tempCode = new ConcurrentHashMap<>();
     private final Map<Long, UserPermission> tempPermission = new ConcurrentHashMap<>();
     private final Map<Long, Tariff> tempTariff = new ConcurrentHashMap<>();
+    private final Map<Long, Long> tempGroupId = new ConcurrentHashMap<>();
 
     @Async
     public void removeTempDataByUser(Long userId) {
         tempCode.remove(userId);
         tempPermission.remove(userId);
         tempTariff.remove(userId);
+        tempGroupId.remove(userId);
     }
 
     public void addTempCode(Long userId, DontUsedCodePermission permission) {
@@ -54,6 +56,17 @@ public class TempData {
     public UserPermission getTempPermission(Long userId) {
         if (tempPermission.containsKey(userId)) {
             return tempPermission.get(userId);
+        }
+        return null;
+    }
+
+    public void addTempGroupId(Long id, long groupId) {
+        tempGroupId.put(id, groupId);
+    }
+
+    public Long getTempGroupId(Long userId) {
+        if (tempGroupId.containsKey(userId)) {
+            return tempGroupId.get(userId);
         }
         return null;
     }

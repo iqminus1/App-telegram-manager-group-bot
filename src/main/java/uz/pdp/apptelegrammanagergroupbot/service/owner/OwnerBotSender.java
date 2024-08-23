@@ -3,7 +3,6 @@ package uz.pdp.apptelegrammanagergroupbot.service.owner;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChat;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
@@ -41,15 +40,6 @@ public class OwnerBotSender extends DefaultAbsSender {
         }
     }
 
-    public String getChatName(Long chatId) {
-        GetChat getChat = new GetChat();
-        getChat.setChatId(chatId);
-        try {
-            return execute(getChat).getTitle();
-        } catch (TelegramApiException e) {
-            return null;
-        }
-    }
 
     public void changeText(Long userId, Integer messageId, String text) {
         EditMessageText editMessageText = new EditMessageText();

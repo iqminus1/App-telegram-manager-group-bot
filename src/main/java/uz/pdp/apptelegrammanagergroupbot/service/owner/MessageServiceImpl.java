@@ -14,7 +14,6 @@ import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.*;
 import uz.pdp.apptelegrammanagergroupbot.service.admin.BotController;
-import uz.pdp.apptelegrammanagergroupbot.service.admin.www.Temp;
 import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
@@ -40,14 +39,14 @@ public class MessageServiceImpl implements MessageService {
     private final CallbackService callbackService;
     private final BotController botController;
     private final TariffRepository tariffRepository;
-    private final Temp temp;
     private final GroupRepository groupRepository;
+    private final ScreenshotGroupRepository screenshotGroupRepository;
 
     @Override
     public void process(Message message) {
         User user = commonUtils.getUser(message.getFrom().getId());
-        if (message.hasText()) {
-            if (message.getChat().getType().equals("private")) {
+        if (message.getChat().getType().equals("private")) {
+            if (message.hasText()) {
                 String text = message.getText();
                 if (text.equalsIgnoreCase(AppConstant.START)) {
                     start(message);
@@ -71,6 +70,8 @@ public class MessageServiceImpl implements MessageService {
                         groupSettings(message);
                     } else if (text.equals(AppConstant.GENERATE_CODE_FOR_REQUEST)) {
                         showListGroups(message);
+                    } else if (text.equals(AppConstant.SEE_ALL_SCREENSHOTS)) {
+                        seeAllScreenshots(message);
                     }
                 } else if (user.getState().equals(StateEnum.USE_CODE)) {
                     checkPermissionCodeAndActivate(message);
@@ -90,18 +91,97 @@ public class MessageServiceImpl implements MessageService {
                     setTariffExpire(message);
                 } else if ((user.getState().equals(StateEnum.SENDING_TARIFF_PRICE))) {
                     setTariffPrice(message);
+                } else if (user.getState().equals(StateEnum.SENDING_CARD_NUMBER_FOR_ONE)) {
+                    addToOneCardNumber(message);
+                }
+            } else if (message.hasPhoto()) {
+                if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
+                    savePhoto(message);
+            } else if ((message.hasContact())) {
+                if (user.getState().equals(StateEnum.ADMIN_SENDING_CONTACT)) {
+                    sendingContact(message);
                 }
             }
-        } else if (message.hasPhoto()) {
-            if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
-                savePhoto(message);
-        } else if ((message.hasContact())) {
-            if (user.getState().equals(StateEnum.ADMIN_SENDING_CONTACT)) {
-                sendingContact(message);
+        }
+    }
+
+    private void seeAllScreenshots(Message message) {
+        Long userId = message.getFrom().getId();
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty()) {
+            return;
+        }
+        if (!optionalUserPermission.get().isScreenshot()) {
+            return;
+        }
+        List<Group> allByOwnerId = groupRepository.findAllByOwnerId(userId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Нажмите из какой групп или канах хотите смотрет фото отправки денги:\n\n");
+        int i = 1;
+        List<Map<String, String>> list = new ArrayList<>();
+        for (Group group : allByOwnerId) {
+            if (group.isScreenShot()) {
+                if (allByOwnerId.size() != 1) {
+                    sb.append(i).append(". ");
+                }
+                sb.append(group.getName());
+                list.add(Map.of(group.getName(), AppConstant.GROUP_DATA + group.getGroupId()));
             }
         }
-
+        commonUtils.setState(userId, StateEnum.SELECT_GROUP_FOR_SCREENSHOT);
+        ownerBotSender.deleteKeyboard(userId);
+        ownerBotSender.exe(userId, sb.toString(), buttonService.callbackKeyboard(list, 1, false));
     }
+
+    private void addToOneCardNumber(Message message) {
+        Long userId = message.getFrom().getId();
+        Long groupId = tempData.getTempGroupId(userId);
+
+        // Найти группу по groupId
+        Optional<Group> optional = groupRepository.findByGroupId(groupId);
+        if (optional.isEmpty()) {
+            commonUtils.setState(userId, StateEnum.START);
+            ownerBotSender.exe(userId, AppConstant.EXCEPTION, buttonService.startButton(userId));
+            return;
+        }
+
+        Group group = optional.get();
+        String text = message.getText();
+
+        if (text.matches("\\d{16}")) { // Формат без пробелов
+            String formattedCardNumber = text.substring(0, 4) + " " +
+                    text.substring(4, 8) + " " +
+                    text.substring(8, 12) + " " +
+                    text.substring(12);
+            group.setCardNumber(formattedCardNumber);
+            groupRepository.saveOptional(group);
+
+            CallbackQuery callbackQuery = new CallbackQuery();
+            callbackQuery.setFrom(message.getFrom());
+            callbackQuery.setData(AppConstant.SHOW_GROUP_INFO + ":" + groupId);
+            callbackService.showManageGroupInfo(callbackQuery);
+
+            commonUtils.setState(userId, StateEnum.SETTINGS_GROUP);
+            return;
+        } else if (text.matches("\\d{4} \\d{4} \\d{4} \\d{4}")) { // Формат с пробелами
+            group.setCardNumber(text);
+            groupRepository.saveOptional(group);
+
+            commonUtils.setState(userId, StateEnum.START);
+            ownerBotSender.exe(userId, AppConstant.SUCCESSFULLY_CHANGED_ONE_CARD, buttonService.startButton(userId));
+
+            CallbackQuery callbackQuery = new CallbackQuery();
+            callbackQuery.setFrom(message.getFrom());
+            callbackQuery.setData(AppConstant.SHOW_GROUP_INFO + ":" + groupId);
+            callbackService.showManageGroupInfo(callbackQuery);
+
+            return;
+        }
+
+        // Если формат карты некорректен
+        ownerBotSender.exe(userId, "Отправьте номер карты в правильном формате или нажмите на /start, если не хотите изменять.", null);
+    }
+
 
     private void showListGroups(Message message) {
         Long userId = message.getFrom().getId();
@@ -134,9 +214,8 @@ public class MessageServiceImpl implements MessageService {
         int i = 1;
         List<Map<String, String>> list = new ArrayList<>();
         for (Group group : allGroups) {
-            String chatName = ownerBotSender.getChatName(group.getGroupId());
-            sb.append(i++).append(". ").append(chatName).append("\n");
-            list.add(Map.of(chatName, AppConstant.GENERATE_CODE_FOR_GROUP + group.getGroupId()));
+            sb.append(i++).append(". ").append(group.getName()).append("\n");
+            list.add(Map.of(group.getName(), AppConstant.GENERATE_CODE_FOR_GROUP + group.getGroupId()));
         }
         ReplyKeyboard replyKeyboard = buttonService.callbackKeyboard(list, 1, false);
         commonUtils.setState(userId, StateEnum.GENERATE_CODE_FOR_GROUP);
@@ -158,7 +237,7 @@ public class MessageServiceImpl implements MessageService {
         List<Tariff> tariffs = optional.get().getTariffs();
         tariffs.stream().filter(tariff -> tariff.getOrderBy() >= tempTariff.getOrderBy()).forEach(tariff -> tariff.setOrderBy(tariff.getOrderBy() + 1));
         tariffRepository.saveAll(tariffs);
-        tariffRepository.save(tempTariff);
+        tariffRepository.saveOptional(tempTariff);
         commonUtils.setState(userId, StateEnum.SETTINGS_GROUP);
         CallbackQuery callbackQuery = new CallbackQuery();
         callbackQuery.setFrom(message.getFrom());
@@ -225,10 +304,6 @@ public class MessageServiceImpl implements MessageService {
         }
     }
 
-
-    private boolean checkString(String str) {
-        return str != null && !str.isEmpty() && !str.isBlank();
-    }
 
     private void setAdminSizeOfRequests(Message message) {
         Long userId = message.getFrom().getId();

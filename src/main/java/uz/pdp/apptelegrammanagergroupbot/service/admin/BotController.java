@@ -21,9 +21,9 @@ public class BotController {
         AdminBotSender botSender = new AdminBotSender(token);
         Temp temp = new Temp();
         AdminUserState adminUserState = new AdminUserState(userRepository);
-        AdminMessageService adminMessageService = new AdminMessageServiceImpl(adminUserState, joinGroupRequestRepository, groupRepository, botSender, adminButtonService, temp, codeGroupRepository,screenshotGroupRepository);
+        AdminMessageService adminMessageService = new AdminMessageServiceImpl(adminUserState, joinGroupRequestRepository, groupRepository, botSender, adminButtonService, temp, codeGroupRepository, screenshotGroupRepository);
         AdminCallbackService adminCallbackService = new AdminCallbackServiceImpl(adminUserState, groupRepository, botSender, adminButtonService, joinGroupRequestRepository, adminMessageService, temp);
         JoinRequestService joinRequestService = new JoinRequestServiceImpl(botSender, joinGroupRequestRepository, adminButtonService, adminButtonService, adminUserState);
-        new AdminBot(token, username, userId, userPermissionRepository, botSender, joinGroupRequestRepository, joinRequestService, chatMemberService, adminMessageService, adminCallbackService);
+        new AdminBot(token, username, userId, userPermissionRepository, botSender, joinGroupRequestRepository, joinRequestService, chatMemberService, adminMessageService, adminCallbackService, groupRepository, botSender);
     }
 }

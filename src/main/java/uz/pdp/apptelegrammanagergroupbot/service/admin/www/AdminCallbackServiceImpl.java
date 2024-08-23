@@ -62,20 +62,21 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         long tariffId = Long.parseLong(split[1].split(":")[1]);
         long requestId = Long.parseLong(split[2].split(":")[1]);
         long groupId = Long.parseLong(split[3].split(":")[1]);
-        adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+        Long userId = callbackQuery.getFrom().getId();
+        adminBotSender.delete(userId, callbackQuery.getMessage().getMessageId());
         Optional<Group> optionalGroup = groupRepository.findByGroupId(groupId);
         if (optionalGroup.isEmpty()) {
-            adminBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.EXCEPTION, null);
+            adminBotSender.exe(userId, AppConstant.EXCEPTION, null);
             return;
         }
         Group group = optionalGroup.get();
         if (!checkString(group.getCardNumber())) {
-            adminBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.EXCEPTION, null);
+            adminBotSender.exe(userId, AppConstant.EXCEPTION, null);
             return;
         }
-        adminBotSender.exe(callbackQuery.getFrom().getId(), AdminConstants.SEND_PHOTO, null);
-        ScreenshotGroup screenshotGroup = new ScreenshotGroup(groupId, callbackQuery.getFrom().getId(), tariffId, null, ScreenshotStatus.DONT_SEE, false, null);
-        temp.addScreenshotGroup(callbackQuery.getFrom().getId(), screenshotGroup);
+        adminBotSender.exe(userId, AdminConstants.SEND_PHOTO.formatted(group.getCardNumber()), new ReplyKeyboardRemove(true));
+        ScreenshotGroup screenshotGroup = new ScreenshotGroup(groupId, userId, tariffId, null, ScreenshotStatus.DONT_SEE, false, null);
+        temp.addScreenshotGroup(userId, screenshotGroup);
     }
 
     private boolean checkString(String str) {
@@ -86,23 +87,23 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
     private void paymeOrClick(CallbackQuery callbackQuery) {
         String[] split = callbackQuery.getData().split("\\+");
         String paymeOrClick = split[0].split(":")[1];
-        Long tariffId = Long.parseLong(split[1].split(":")[1]);
-        Long requestId = Long.parseLong(split[2].split(":")[1]);
-        Long groupId = Long.parseLong(split[3].split(":")[1]);
-        adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+        Long userId = callbackQuery.getFrom().getId();
+        adminBotSender.delete(userId, callbackQuery.getMessage().getMessageId());
         if (paymeOrClick.equals("payme")) {
-            adminBotSender.exe(callbackQuery.getFrom().getId(), "Генерация инвойс для payme", null);
+            adminBotSender.exe(userId, "Генерация инвойс для payme", null);
             return;
         }
-        adminBotSender.exe(callbackQuery.getFrom().getId(), "Генерация инвойс для click", null);
+        adminBotSender.exe(userId, "Генерация инвойс для click", null);
     }
 
     private void selectTariff(CallbackQuery callbackQuery) {
         String[] split = callbackQuery.getData().split("\\+");
         Long groupId = Long.parseLong(split[2].split(":")[1]);
         Optional<Group> optionalGroup = groupRepository.findByGroupId(groupId);
+        Long userId = callbackQuery.getFrom().getId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
         if (optionalGroup.isEmpty()) {
-            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            adminBotSender.delete(userId, messageId);
             return;
         }
         List<Map<String, String>> list = new ArrayList<>();
@@ -115,16 +116,16 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
             list.add(Map.of(AdminConstants.SCREENSHOT_TEXT, AdminConstants.SCREENSHOT_DATA + "wow" + "+" + callbackQuery.getData()));
         }
         if (list.isEmpty()) {
-            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
-            adminUserState.setState(callbackQuery.getFrom().getId(), StateEnum.START);
-            adminBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.EXCEPTION, null);
+            adminBotSender.delete(userId, messageId);
+            adminUserState.setState(userId, StateEnum.START);
+            adminBotSender.exe(userId, AppConstant.EXCEPTION, null);
             return;
         }
-        adminUserState.setState(callbackQuery.getFrom().getId(), StateEnum.SELECT_TARIFF);
+        adminUserState.setState(userId, StateEnum.SELECT_TARIFF);
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + "toTariffs" + callbackQuery.getData()));
         ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
-        adminBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), AppConstant.SELECT_CHOOSE);
-        adminBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), replyKeyboard);
+        adminBotSender.changeText(userId, messageId, AppConstant.SELECT_CHOOSE);
+        adminBotSender.changeKeyboard(userId, messageId, replyKeyboard);
     }
 
     private void deleteRequest(CallbackQuery callbackQuery, Long adminId) {
@@ -135,18 +136,20 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
     }
 
     private void refreshRequestList(CallbackQuery callbackQuery, Long adminId) {
-        SendMessage sendMessage = adminMessageService.showRequestLists(callbackQuery.getFrom().getId(), adminId);
+        Long userId = callbackQuery.getFrom().getId();
+        SendMessage sendMessage = adminMessageService.showRequestLists(userId, adminId);
+        Integer messageId = callbackQuery.getMessage().getMessageId();
         if (sendMessage == null) {
-            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            adminBotSender.delete(userId, messageId);
             return;
         }
         if (sendMessage.getReplyMarkup() == null || ((InlineKeyboardMarkup) sendMessage.getReplyMarkup()).getKeyboard().isEmpty()) {
-            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
-            adminBotSender.exe(callbackQuery.getFrom().getId(), AdminConstants.HAVE_NOT_ANY_REQUESTS, new ReplyKeyboardRemove(true));
+            adminBotSender.delete(userId, messageId);
+            adminBotSender.exe(userId, AdminConstants.HAVE_NOT_ANY_REQUESTS, new ReplyKeyboardRemove(true));
             return;
         }
-        adminBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), sendMessage.getText());
-        adminBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), sendMessage.getReplyMarkup());
+        adminBotSender.changeText(userId, messageId, sendMessage.getText());
+        adminBotSender.changeKeyboard(userId, messageId, sendMessage.getReplyMarkup());
     }
 
     private void tariffList(CallbackQuery callbackQuery) {
@@ -154,14 +157,16 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         String[] split = data.split("\\+");
         Long groupId = Long.parseLong(split[1].split(":")[1]);
         Optional<Group> optionalGroup = groupRepository.findByGroupId(groupId);
+        Long userId = callbackQuery.getFrom().getId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
         if (optionalGroup.isEmpty()) {
-            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            adminBotSender.delete(userId, messageId);
             return;
         }
         Group group = optionalGroup.get();
         List<Tariff> tariffs = group.getTariffs();
         if (tariffs.isEmpty()) {
-            adminBotSender.delete(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            adminBotSender.delete(userId, messageId);
             return;
         }
         StringBuilder sb = new StringBuilder();
@@ -177,8 +182,8 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
         }
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
         ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
-        adminBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), sb.toString());
-        adminBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), replyKeyboard);
+        adminBotSender.changeText(userId, messageId, sb.toString());
+        adminBotSender.changeKeyboard(userId, messageId, replyKeyboard);
     }
 
 
