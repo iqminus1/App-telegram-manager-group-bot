@@ -6,18 +6,19 @@ import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import uz.pdp.apptelegrammanagergroupbot.entity.Group;
-import uz.pdp.apptelegrammanagergroupbot.entity.JoinGroupRequest;
-import uz.pdp.apptelegrammanagergroupbot.entity.User;
+import uz.pdp.apptelegrammanagergroupbot.entity.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.CodeGroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.repository.JoinGroupRequestRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.ScreenshotGroupRepository;
+import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RequiredArgsConstructor
 public class AdminMessageServiceImpl implements AdminMessageService {
@@ -28,52 +29,93 @@ public class AdminMessageServiceImpl implements AdminMessageService {
     private final AdminButtonService adminButtonService;
     private final Temp temp;
     private final CodeGroupRepository codeGroupRepository;
+    private final ScreenshotGroupRepository screenshotGroupRepository;
 
     @Override
 
     public void process(Message message, Long adminId) {
         User user = adminUserState.getUser(message.getFrom().getId());
-        if (message.hasText()) {
-            String text = message.getText();
-            if (text.equalsIgnoreCase("/start")) {
-                start(message, adminId);
-            } else if (user.getState().equals(StateEnum.START)) {
-                if (text.equals(AdminConstants.SHOW_PRICE)) {
-                    showPriceList(message, adminId);
+        if (message.getChat().getType().equals("private")) {
+            if (message.hasText()) {
+                String text = message.getText();
+                if (text.equalsIgnoreCase("/start")) {
+                    start(message, adminId);
+                } else if (user.getState().equals(StateEnum.START)) {
+                    if (text.equals(AdminConstants.SHOW_PRICE)) {
+                        showPriceList(message, adminId);
+                    } else if ((text.equals(AdminConstants.CODE_TEXT))) {
+                        sendCode(message, adminId);
+                    }
+                } else if (user.getState().equals(StateEnum.SENDING_CODE)) {
+                    checkJoinCode(message, adminId);
                 }
-            } else if (user.getState().equals(StateEnum.SENDING_CODE)) {
-                checkJoinCode(message, adminId);
+            } else if (message.hasPhoto()) {
+                saveScreenshot(message);
             }
-        } else if (message.hasPhoto()) {
-            saveScreenshot(message, adminId);
         }
     }
 
-    private void saveScreenshot(Message message, Long adminId) {
-        Long groupId = temp.getTempGroupId(message.getFrom().getId());
-        String fileId = message.getPhoto().get(0).getFileId();
-        Long userId = message.getFrom().getId();
+    private void sendCode(Message message, Long adminId) {
+        List<Group> allByOwnerId = groupRepository.findAllByOwnerId(adminId);
+        if (allByOwnerId.isEmpty()) {
+            return;
+        }
+        for (Group group : allByOwnerId) {
+            Optional<JoinGroupRequest> optionalJoinGroupRequest = joinGroupRequestRepository.findByUserIdAndGroupId(message.getFrom().getId(), group.getGroupId());
+            if (optionalJoinGroupRequest.isPresent()) {
+                if (group.isCode()) {
+                    adminUserState.setState(message.getFrom().getId(), StateEnum.SENDING_CODE);
+                    adminBotSender.exe(message.getFrom().getId(), AppConstant.SEND_CODE_TEXT, null);
+                }
 
+            }
+        }
+    }
+
+    private void saveScreenshot(Message message) {
+        Long userId = message.getFrom().getId();
+        ScreenshotGroup tempScreenshot = temp.getTempScreenshot(userId);
+        if (tempScreenshot == null) {
+            adminBotSender.exe(userId, AppConstant.EXCEPTION, adminButtonService.withString(List.of(AdminConstants.SHOW_PRICE, AdminConstants.CODE_TEXT), 1));
+            return;
+        }
+        String fileId = message.getPhoto().get(0).getFileId();
+        tempScreenshot.setPath(fileId);
+        screenshotGroupRepository.save(tempScreenshot);
+        adminUserState.setState(userId, StateEnum.START);
+        adminBotSender.exe(userId, AdminConstants.SUCCESSFULLY_GETTING_PHOTO, null);
     }
 
     private void checkJoinCode(Message message, Long adminId) {
-        Long groupId = temp.getTempGroupId(message.getFrom().getId());
-        if (groupRepository.findByGroupId(groupId).isEmpty()) {
-            adminUserState.setState(message.getFrom().getId(), StateEnum.START);
-            adminBotSender.exe(message.getFrom().getId(), AdminConstants.INVALID_CODE, showRequestLists(message.getFrom().getId(), adminId).getReplyMarkup());
+        Long userId = message.getFrom().getId();
+        List<Group> byOwnerId = groupRepository.findAllByOwnerId(adminId);
+        if (byOwnerId.isEmpty()) {
+            adminUserState.setState(userId, StateEnum.START);
+            adminBotSender.exe(userId, AdminConstants.INVALID_CODE, showRequestLists(userId, adminId).getReplyMarkup());
             return;
         }
-        codeGroupRepository.findByCodeAndGroupId(message.getText(), groupId).ifPresent(code -> {
-            code.setActive(true);
-            code.setActiveAt(new Timestamp(System.currentTimeMillis()));
-            code.setUserId(message.getFrom().getId());
-            codeGroupRepository.saveOptional(code);
-            joinGroupRequestRepository.findByUserIdAndGroupId(message.getFrom().getId(), groupId).ifPresent(req -> {
-                adminBotSender.acceptJoinRequest(req);
-                joinGroupRequestRepository.delete(req);
-            });
-        });
+        for (Group group : byOwnerId) {
+            Optional<CodeGroup> optionalCodeGroup = codeGroupRepository.findByCodeAndGroupId(message.getText(), group.getGroupId());
+            if (optionalCodeGroup.isPresent()) {
+                CodeGroup code = optionalCodeGroup.get();
+                code.setActive(true);
+                code.setActiveAt(new Timestamp(System.currentTimeMillis()));
+                code.setUserId(userId);
+                codeGroupRepository.saveOptional(code);
+                joinGroupRequestRepository.findByUserIdAndGroupId(userId, group.getGroupId()).ifPresent(req -> {
+                    adminBotSender.acceptJoinRequest(req);
+                    joinGroupRequestRepository.delete(req);
+                });
+                adminUserState.setState(userId, StateEnum.START);
+                adminBotSender.exe(userId, AdminConstants.SUCCESSFULLY_JOINED, new ReplyKeyboardRemove(true));
+                return;
+            }
+
+            adminUserState.setState(userId, StateEnum.START);
+            adminBotSender.exe(userId, AdminConstants.INVALID_CODE, null);
+        }
     }
+
 
     private void showPriceList(Message message, Long adminId) {
         try {
@@ -117,7 +159,7 @@ public class AdminMessageServiceImpl implements AdminMessageService {
             adminBotSender.exe(message.getFrom().getId(), AdminConstants.HAVE_NOT_ANY_REQUESTS, new ReplyKeyboardRemove(true));
             return;
         }
-        adminBotSender.exe(message.getFrom().getId(), AdminConstants.START, adminButtonService.withString(List.of(AdminConstants.SHOW_PRICE), 1));
+        adminBotSender.exe(message.getFrom().getId(), AdminConstants.START, adminButtonService.withString(List.of(AdminConstants.SHOW_PRICE, AdminConstants.CODE_TEXT), 1));
     }
 
     private List<JoinGroupRequest> getRequests(Long userId, Long ownerId) {

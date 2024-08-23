@@ -72,8 +72,8 @@ public interface AppConstant {
     String SHOW_SCREENSHOTS_TEXT = "Показать отправленный оплаты";
 
     String SHOW_SCREENSHOTS_DATA = "showScreenShotGroupId:";
-    String MANAGE_GROUP_PRICE_TEXT = "Конртол ценам";
-    String MANAGE_GROUP_PRICE_DATA = "managePriceGroupId:";
+    String MANAGE_GROUP_TARIFF_TEXT = "Контрол тарифы";
+    String MANAGE_GROUP_TARIFF_DATA = "manageTariffGroupId:";
     String SHOW_GROUP_INFO = "showInfoGroupId:";
     String OFF_PAYMENT_TEXT = "Режим оплата payme и click";
     String ON_PAYMENT_TEXT = "Режим оплата payme и click";
@@ -97,4 +97,19 @@ public interface AppConstant {
     String FIRST_OR_SECOND_ORDER = "Отправте тариф какой очереде был 1 или 2";
     String SEND_TARIFF_PRICE = "Отправте цену на пример 1000000";
     String GENERATE_CODE_FOR_REQUEST = "Генерация код для вступления";
+    String YOU_HAVE_NOT_ANY_GROUPS = "Вы не добовали бота ващех каналах или групп.";
+    String GENERATE_CODE_FOR_GROUP = "generateCodeForGroupId:";
+    String YOU_HAVE_NOT_ANY_TARIFFS = "Этот группу нет не одного тарифа который вы бы мог взяли кода\n\nСначало добавте тарифа а потом можно взят код";
+    String SELECT_TARIFF_FOR_GENERATE_CODE = "selectTariff:";
+    String CODE_FOR_JOIN_REQ = "Вот ваще код для вступления\n\nКанал -> %s \nТарифу --> %s\n Код ---> %s";
+    String CHANGE_TARIFF_NAME_TEXT = "Изменить названия";
+    String CHANGE_TARIFF_NAME_DATA = "changeTariffName:";
+    String CHANGE_TARIFF_DAY_TEXT = "Изменить действия";
+    String CHANGE_TARIFF_DAY_DATA = "changeTariffExpire:";
+    String CHANGE_TARIFF_PRICE_TEXT = "Изменить цену";
+    String CHANGE_TARIFF_PRICE_DATA = "changeTariffPrice:";
+    String CHANGE_TARIFF_ORDER_TEXT = "Изменить очеред";
+    String CHANGE_TARIFF_ORDER_DATA = "changeTariffOrder";
+    String DELETE_TARIFF_TEXT = "Удалить тарифа";
+    String DELETE_TARIFF_DATA = "deleteTariff";
 }

@@ -1,6 +1,6 @@
 package uz.pdp.apptelegrammanagergroupbot.service.owner;
 
-import lombok.RequiredArgsConstructor;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
@@ -10,9 +10,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRem
 import uz.pdp.apptelegrammanagergroupbot.entity.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
-import uz.pdp.apptelegrammanagergroupbot.repository.DontUsedCodePermissionRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.UserPermissionRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.*;
 import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
@@ -21,7 +19,6 @@ import java.sql.Timestamp;
 import java.util.*;
 
 @Service
-@RequiredArgsConstructor
 public class CallbackServiceImpl implements CallbackService {
     private final CommonUtils commonUtils;
     private final ButtonService buttonService;
@@ -30,6 +27,24 @@ public class CallbackServiceImpl implements CallbackService {
     private final DontUsedCodePermissionRepository dontUsedCodePermissionRepository;
     private final UserPermissionRepository userPermissionRepository;
     private final GroupRepository groupRepository;
+    private final MessageService messageService;
+    private final CodeService codeService;
+    private final TariffRepository tariffRepository;
+    private final CodeGroupRepository codeGroupRepository;
+
+    public CallbackServiceImpl(CommonUtils commonUtils, ButtonService buttonService, TempData tempData, OwnerBotSender ownerBotSender, DontUsedCodePermissionRepository dontUsedCodePermissionRepository, UserPermissionRepository userPermissionRepository, GroupRepository groupRepository, @Lazy MessageService messageService, CodeService codeService, TariffRepository tariffRepository, CodeGroupRepository codeGroupRepository) {
+        this.commonUtils = commonUtils;
+        this.buttonService = buttonService;
+        this.tempData = tempData;
+        this.ownerBotSender = ownerBotSender;
+        this.dontUsedCodePermissionRepository = dontUsedCodePermissionRepository;
+        this.userPermissionRepository = userPermissionRepository;
+        this.groupRepository = groupRepository;
+        this.messageService = messageService;
+        this.codeService = codeService;
+        this.tariffRepository = tariffRepository;
+        this.codeGroupRepository = codeGroupRepository;
+    }
 
     @Override
     public void process(CallbackQuery callbackQuery) {
@@ -63,20 +78,144 @@ public class CallbackServiceImpl implements CallbackService {
                 showManageGroupInfo(callbackQuery);
             } else if (data.startsWith(AppConstant.BACK_DATA)) {
                 backShowGroupList(callbackQuery);
-            } else if (data.startsWith(AppConstant.MANAGE_GROUP_PRICE_DATA)) {
+            } else if (data.startsWith(AppConstant.MANAGE_GROUP_TARIFF_DATA)) {
                 manageGroupPrice(callbackQuery);
             } else if (data.startsWith(AppConstant.MANAGE_GROUP_PAYMENT_DATA)) {
                 showGroupPaymentInfo(callbackQuery);
             }
-        } else if (user.getState().equals(StateEnum.SETTINGS_PAYMENT) || user.getState().equals(StateEnum.SETTINGS_PRICE)) {
+        } else if (user.getState().equals(StateEnum.SETTINGS_PAYMENT) || user.getState().equals(StateEnum.SETTINGS_TARIFF)) {
             if (callbackQuery.getData().startsWith("true:") || callbackQuery.getData().startsWith("false")) {
                 changeStatus(callbackQuery);
             } else if (data.startsWith(AppConstant.BACK_DATA)) {
                 showManageGroupInfo(callbackQuery);
             } else if ((data.startsWith(AppConstant.ADD_TARIFF_DATA))) {
                 addTariff(callbackQuery);
+            } else if (data.startsWith(AppConstant.TARIFF_DATA)) {
+                showSettingsTariff(callbackQuery);
+            }
+        } else if (user.getState().equals(StateEnum.GENERATE_CODE_FOR_GROUP)) {
+            if (data.startsWith(AppConstant.GENERATE_CODE_FOR_GROUP)) {
+                showGroupTariffs(callbackQuery);
+            } else if (data.startsWith(AppConstant.SELECT_TARIFF_FOR_GENERATE_CODE)) {
+                generateCodeWithTariff(callbackQuery);
+            } else if (data.startsWith(AppConstant.BACK_DATA)) {
+                backToGroupList(callbackQuery);
+            }
+        } else if (user.getState().equals(StateEnum.MANAGE_TARIFF)) {
+            if (data.startsWith(AppConstant.BACK_DATA)) {
+                backToTariffList(callbackQuery);
             }
         }
+    }
+
+    private void backToTariffList(CallbackQuery callbackQuery) {
+        commonUtils.setState(callbackQuery.getFrom().getId(), StateEnum.SETTINGS_TARIFF);
+        callbackQuery.setData(AppConstant.MANAGE_GROUP_TARIFF_DATA + Long.parseLong(callbackQuery.getData().split("\\+")[1].split(":")[1]));
+        manageGroupPrice(callbackQuery);
+    }
+
+    private void showSettingsTariff(CallbackQuery callbackQuery) {
+        String[] split = callbackQuery.getData().split("\\+");
+        long tariffId = Long.parseLong(split[0].split(":")[1]);
+        long groupId = Long.parseLong(split[1].split(":")[1]);
+        Optional<Tariff> optionalTariff = tariffRepository.findById(tariffId);
+        Long userId = callbackQuery.getFrom().getId();
+        if (optionalTariff.isEmpty()) {
+            ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
+            ownerBotSender.exe(userId, AppConstant.EXCEPTION, buttonService.startButton(userId));
+            return;
+        }
+        Tariff tariff = optionalTariff.get();
+        StringBuilder sb = new StringBuilder();
+        sb.append("Информация по тарифу\nНазвания канала или груп - ").append(ownerBotSender.getChatName(tariff.getGroup().getId())).append("\n\n");
+        sb.append("Названия тарифа - ").append(tariff.getName()).append("\n");
+        sb.append("Скок дней оно действует - ").append(tariff.getDays()).append("\n");
+        sb.append("Цена - ").append(tariff.getPrice()).append("\n");
+        sb.append("По очереди - ").append(tariff.getOrderBy()).append("\n");
+        List<Map<String, String>> list = new ArrayList<>();
+        list.add(Map.of(AppConstant.CHANGE_TARIFF_NAME_TEXT,
+                AppConstant.CHANGE_TARIFF_NAME_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+
+        list.add(Map.of(AppConstant.CHANGE_TARIFF_DAY_TEXT,
+                AppConstant.CHANGE_TARIFF_DAY_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+
+        list.add(Map.of(
+                AppConstant.CHANGE_TARIFF_PRICE_TEXT,
+                AppConstant.CHANGE_TARIFF_PRICE_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+
+        list.add(Map.of(
+                AppConstant.CHANGE_TARIFF_ORDER_TEXT,
+                AppConstant.CHANGE_TARIFF_ORDER_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+
+        list.add(Map.of(
+                AppConstant.DELETE_TARIFF_TEXT,
+                AppConstant.DELETE_TARIFF_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+
+        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_TEXT));
+        commonUtils.setState(userId, StateEnum.MANAGE_TARIFF);
+        ownerBotSender.changeText(userId, callbackQuery.getMessage().getMessageId(), sb.toString());
+        ownerBotSender.changeKeyboard(userId, callbackQuery.getMessage().getMessageId(), (InlineKeyboardMarkup) buttonService.callbackKeyboard(list, 1, false));
+    }
+
+
+    private void backToGroupList(CallbackQuery callbackQuery) {
+        SendMessage sendMessage = messageService.generateCodeListGroups(callbackQuery.getFrom().getId());
+        if (sendMessage == null) {
+            commonUtils.setState(callbackQuery.getFrom().getId(), StateEnum.START);
+            ownerBotSender.deleteMessage(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            ownerBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.EXCEPTION, buttonService.startButton(callbackQuery.getFrom().getId()));
+        }
+        ownerBotSender.changeText(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), sendMessage.getText());
+        ownerBotSender.changeKeyboard(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), (InlineKeyboardMarkup) sendMessage.getReplyMarkup());
+
+    }
+
+    private void generateCodeWithTariff(CallbackQuery callbackQuery) {
+        String[] split = callbackQuery.getData().split("\\+");
+        long tariffId = Long.parseLong(split[0].split(":")[1]);
+        long groupId = Long.parseLong(split[1].split(":")[1]);
+        Optional<Tariff> optionalTariff = tariffRepository.findById(tariffId);
+        if (optionalTariff.isEmpty()) {
+            commonUtils.setState(callbackQuery.getFrom().getId(), StateEnum.START);
+            ownerBotSender.deleteMessage(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            ownerBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.EXCEPTION, buttonService.startButton(callbackQuery.getFrom().getId()));
+            return;
+        }
+        Tariff tariff = optionalTariff.get();
+        CodeGroup codeGroup = new CodeGroup(codeService.generateCode(), groupId, null, tariff.getDays(), false, null);
+        codeGroupRepository.saveOptional(codeGroup);
+        ownerBotSender.deleteMessage(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+        ownerBotSender.exe(callbackQuery.getFrom().getId(), AppConstant.CODE_FOR_JOIN_REQ.formatted(ownerBotSender.getChatName(codeGroup.getGroupId()), tariff.getName(), codeGroup.getCode()), buttonService.startButton(callbackQuery.getFrom().getId()));
+    }
+
+    private void showGroupTariffs(CallbackQuery callbackQuery) {
+        long groupId = Long.parseLong(callbackQuery.getData().split(":")[1]);
+        Optional<Group> optionalGroup = groupRepository.findByGroupId(groupId);
+        Long userId = callbackQuery.getFrom().getId();
+        if (optionalGroup.isEmpty()) {
+            ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
+            ownerBotSender.exe(userId, AppConstant.EXCEPTION, buttonService.startButton(userId));
+            return;
+        }
+        Group group = optionalGroup.get();
+        List<Tariff> tariffs = group.getTariffs();
+        if (tariffs.isEmpty()) {
+            ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
+            ownerBotSender.exe(userId, AppConstant.YOU_HAVE_NOT_ANY_TARIFFS, buttonService.startButton(userId));
+            return;
+        }
+        Collections.sort(tariffs);
+        StringBuilder sb = new StringBuilder();
+        sb.append("Список тарифи: \n\n=============\nВыберите тариф который вам нужно взят код.\n--------------\n\n");
+        List<Map<String, String>> list = new ArrayList<>();
+        int i = 1;
+        for (Tariff tariff : tariffs) {
+            sb.append(i).append(". ").append(tariff.getName()).append("\n").append("--  ").append(tariff.getDays()).append(" дней\n\n");
+            list.add(Map.of(tariff.getName(), AppConstant.SELECT_TARIFF_FOR_GENERATE_CODE + tariff.getId() + "+" + callbackQuery.getData()));
+        }
+        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
+        ownerBotSender.changeText(userId, callbackQuery.getMessage().getMessageId(), sb.toString());
+        ownerBotSender.changeKeyboard(userId, callbackQuery.getMessage().getMessageId(), (InlineKeyboardMarkup) buttonService.callbackKeyboard(list, 1, false));
     }
 
     private void addTariff(CallbackQuery callbackQuery) {
@@ -124,7 +263,7 @@ public class CallbackServiceImpl implements CallbackService {
 //    }
 
     private void manageGroupPrice(CallbackQuery callbackQuery) {
-        commonUtils.setState(callbackQuery.getFrom().getId(), StateEnum.SETTINGS_PRICE);
+        commonUtils.setState(callbackQuery.getFrom().getId(), StateEnum.SETTINGS_TARIFF);
         Long userId = callbackQuery.getFrom().getId();
         long groupId = Long.parseLong(callbackQuery.getData().split(":")[1]);
         Optional<Group> optionalGroup = groupRepository.findByGroupId(groupId);
@@ -144,7 +283,7 @@ public class CallbackServiceImpl implements CallbackService {
             sb.append("\n").append(i++).append(". ").append(tariff.getName()).append("\n-----------");
 
             Map<String, String> map = new HashMap<>();
-            map.put(tariff.getName(), AppConstant.TARIFF_DATA + tariff.getId() + AppConstant.GROUP_DATA + groupId);
+            map.put(tariff.getName(), AppConstant.TARIFF_DATA + tariff.getId() + "+" + AppConstant.GROUP_DATA + groupId);
             list.add(map);
         }
         list.add(Map.of(AppConstant.ADD_TARIFF_TEXT, AppConstant.ADD_TARIFF_DATA + "+" + AppConstant.GROUP_DATA + groupId));
@@ -181,8 +320,8 @@ public class CallbackServiceImpl implements CallbackService {
         List<Map<String, String>> list = List.of(
                 Map.of(AppConstant.MANAGE_GROUP_PAYMENT_TEXT,
                         AppConstant.MANAGE_GROUP_PAYMENT_DATA + groupId),
-                Map.of(AppConstant.MANAGE_GROUP_PRICE_TEXT,
-                        AppConstant.MANAGE_GROUP_PRICE_DATA + groupId),
+                Map.of(AppConstant.MANAGE_GROUP_TARIFF_TEXT,
+                        AppConstant.MANAGE_GROUP_TARIFF_DATA + groupId),
                 Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
 
         return buttonService.callbackKeyboard(list, 1, false);

@@ -17,6 +17,4 @@ public class JoinGroupRequest extends AbsLongEntity implements Serializable {
     private Long userId;
 
     private Long groupId;
-
-    private JoinTypeEnum type;
 }

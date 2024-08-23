@@ -47,7 +47,7 @@ public class OwnerBotSender extends DefaultAbsSender {
         try {
             return execute(getChat).getTitle();
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            return null;
         }
     }
 

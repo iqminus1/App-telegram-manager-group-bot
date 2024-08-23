@@ -21,9 +21,7 @@ import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
 
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 @RequiredArgsConstructor
@@ -49,46 +47,50 @@ public class MessageServiceImpl implements MessageService {
     public void process(Message message) {
         User user = commonUtils.getUser(message.getFrom().getId());
         if (message.hasText()) {
-            String text = message.getText();
-            if (text.equalsIgnoreCase(AppConstant.START)) {
-                start(message);
-            }
-            if (user.getState().equals(StateEnum.START)) {
-                if (text.equals(AppConstant.GENERATE_CODE_FOR_PERMISSION)) {
-                    generateCodeForPermission(message);
-                } else if (text.equals(AppConstant.GENERATE_CODE_FOR_CREATOR)) {
-                    mailService.sendCodeForCreator();
-                } else if (text.startsWith(AppConstant.DATA_GET_CREATOR)) {
-                    getCreator(message);
-                } else if (text.equals(AppConstant.USE_CODE)) {
-                    usePermissionCode(message);
-                } else if (List.of(AppConstant.ADD_BOT_TOKEN, AppConstant.CHANGE_BOT_TOKEN).contains(text)) {
-                    addOrChangeToken(message);
-                } else if (text.equals(AppConstant.ABOUT_BOT)) {
-                    aboutUs(message);
-                } else if (List.of(AppConstant.BUY_PERMISSION, AppConstant.EXTENSION_OF_RIGHT).contains(text)) {
-                    buyOrExtensionPermission(message);
-                } else if (text.equals(AppConstant.GROUP_SETTINGS)) {
-                    groupSettings(message);
+            if (message.getChat().getType().equals("private")) {
+                String text = message.getText();
+                if (text.equalsIgnoreCase(AppConstant.START)) {
+                    start(message);
                 }
-            } else if (user.getState().equals(StateEnum.USE_CODE)) {
-                checkPermissionCodeAndActivate(message);
-            } else if (user.getState().equals(StateEnum.ADMIN_SENDING_TOKEN)) {
-                setAdminBotToken(message);
-            } else if (user.getState().equals(StateEnum.ADMIN_SENDING_BOT_USERNAME)) {
-                setAdminBotUsername(message);
-            } else if (user.getState().equals(StateEnum.SIZE_OF_REQUESTS)) {
-                setSizeOfRequestGenCode(message);
-            } else if (user.getState().equals(StateEnum.ADMIN_SENDING_SIZE_OF_REQUESTS)) {
-                setAdminSizeOfRequests(message);
-            } else if (user.getState().equals(StateEnum.SENDING_TARIFF_NAME)) {
-                setTariffName(message);
-            } else if (user.getState().equals(StateEnum.SENDING_TARIFF_ORDER)) {
-                setTariffOrder(message);
-            } else if (user.getState().equals(StateEnum.SENDING_TARIFF_EXPIRE)) {
-                setTariffExpire(message);
-            } else if ((user.getState().equals(StateEnum.SENDING_TARIFF_PRICE))) {
-                setTariffPrice(message);
+                if (user.getState().equals(StateEnum.START)) {
+                    if (text.equals(AppConstant.GENERATE_CODE_FOR_PERMISSION)) {
+                        generateCodeForPermission(message);
+                    } else if (text.equals(AppConstant.GENERATE_CODE_FOR_CREATOR)) {
+                        mailService.sendCodeForCreator();
+                    } else if (text.startsWith(AppConstant.DATA_GET_CREATOR)) {
+                        getCreator(message);
+                    } else if (text.equals(AppConstant.USE_CODE)) {
+                        usePermissionCode(message);
+                    } else if (List.of(AppConstant.ADD_BOT_TOKEN, AppConstant.CHANGE_BOT_TOKEN).contains(text)) {
+                        addOrChangeToken(message);
+                    } else if (text.equals(AppConstant.ABOUT_BOT)) {
+                        aboutUs(message);
+                    } else if (List.of(AppConstant.BUY_PERMISSION, AppConstant.EXTENSION_OF_RIGHT).contains(text)) {
+                        buyOrExtensionPermission(message);
+                    } else if (text.equals(AppConstant.GROUP_SETTINGS)) {
+                        groupSettings(message);
+                    } else if (text.equals(AppConstant.GENERATE_CODE_FOR_REQUEST)) {
+                        showListGroups(message);
+                    }
+                } else if (user.getState().equals(StateEnum.USE_CODE)) {
+                    checkPermissionCodeAndActivate(message);
+                } else if (user.getState().equals(StateEnum.ADMIN_SENDING_TOKEN)) {
+                    setAdminBotToken(message);
+                } else if (user.getState().equals(StateEnum.ADMIN_SENDING_BOT_USERNAME)) {
+                    setAdminBotUsername(message);
+                } else if (user.getState().equals(StateEnum.SIZE_OF_REQUESTS)) {
+                    setSizeOfRequestGenCode(message);
+                } else if (user.getState().equals(StateEnum.ADMIN_SENDING_SIZE_OF_REQUESTS)) {
+                    setAdminSizeOfRequests(message);
+                } else if (user.getState().equals(StateEnum.SENDING_TARIFF_NAME)) {
+                    setTariffName(message);
+                } else if (user.getState().equals(StateEnum.SENDING_TARIFF_ORDER)) {
+                    setTariffOrder(message);
+                } else if (user.getState().equals(StateEnum.SENDING_TARIFF_EXPIRE)) {
+                    setTariffExpire(message);
+                } else if ((user.getState().equals(StateEnum.SENDING_TARIFF_PRICE))) {
+                    setTariffPrice(message);
+                }
             }
         } else if (message.hasPhoto()) {
             if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
@@ -98,6 +100,49 @@ public class MessageServiceImpl implements MessageService {
                 sendingContact(message);
             }
         }
+
+    }
+
+    private void showListGroups(Message message) {
+        Long userId = message.getFrom().getId();
+        SendMessage sendMessage = generateCodeListGroups(userId);
+        if (sendMessage == null) {
+            return;
+        }
+        try {
+            ownerBotSender.deleteKeyboard(userId);
+            ownerBotSender.execute(sendMessage);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
+    public SendMessage generateCodeListGroups(Long userId) {
+        Optional<UserPermission> optionalUserPermission = userPermissionRepository.findByUserId(userId);
+        if (optionalUserPermission.isEmpty() || optionalUserPermission.get().getExpireDate().before(new Date())) {
+            ownerBotSender.exe(userId, AppConstant.PERMISSION_CODE_YOUR_MISTAKE, buttonService.startButton(userId));
+            return null;
+        }
+        List<Group> allGroups = groupRepository.findAllByOwnerId(userId);
+        if (allGroups.isEmpty()) {
+            ownerBotSender.exe(userId, AppConstant.YOU_HAVE_NOT_ANY_GROUPS, buttonService.startButton(userId));
+            return null;
+        }
+        StringBuilder sb = new StringBuilder();
+        sb.append("Скисок ващех канал или групп.").append("\n\n");
+        int i = 1;
+        List<Map<String, String>> list = new ArrayList<>();
+        for (Group group : allGroups) {
+            String chatName = ownerBotSender.getChatName(group.getGroupId());
+            sb.append(i++).append(". ").append(chatName).append("\n");
+            list.add(Map.of(chatName, AppConstant.GENERATE_CODE_FOR_GROUP + group.getGroupId()));
+        }
+        ReplyKeyboard replyKeyboard = buttonService.callbackKeyboard(list, 1, false);
+        commonUtils.setState(userId, StateEnum.GENERATE_CODE_FOR_GROUP);
+        SendMessage sendMessage = new SendMessage(userId.toString(), sb.toString());
+        sendMessage.setReplyMarkup(replyKeyboard);
+        return sendMessage;
     }
 
     private void setTariffPrice(Message message) {
@@ -117,7 +162,7 @@ public class MessageServiceImpl implements MessageService {
         commonUtils.setState(userId, StateEnum.SETTINGS_GROUP);
         CallbackQuery callbackQuery = new CallbackQuery();
         callbackQuery.setFrom(message.getFrom());
-        callbackQuery.setData(AppConstant.MANAGE_GROUP_PRICE_DATA + tempTariff.getGroup().getGroupId());
+        callbackQuery.setData(AppConstant.MANAGE_GROUP_TARIFF_DATA + tempTariff.getGroup().getGroupId());
         callbackService.process(callbackQuery);
     }
 

@@ -1,7 +1,7 @@
 package uz.pdp.apptelegrammanagergroupbot.enums;
 
 public enum JoinTypeEnum {
-    BOT,
+    PAYMENT,
     SCREENSHOT,
     CODE;
 }
