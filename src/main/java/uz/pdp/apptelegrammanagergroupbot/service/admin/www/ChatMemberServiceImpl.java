@@ -23,7 +23,7 @@ public class ChatMemberServiceImpl implements ChatMemberService {
     public void process(ChatMemberUpdated chatMember, String botUsername, UserPermission userPermission) {
         if (chatMember.getNewChatMember().getUser().getUserName().equals(botUsername)) {
             if (List.of(ChatMemberOwner.STATUS, ChatMemberAdministrator.STATUS).contains(chatMember.getNewChatMember().getStatus())) {
-                Group group = new Group(userPermission.getUserId(), chatMember.getChat().getId(), null, userPermission.isPayment(), userPermission.isCode(), userPermission.isScreenshot(), null);
+                Group group = new Group(userPermission.getUserId(), chatMember.getChat().getId(), null, userPermission.isPayment(), userPermission.isCode(), userPermission.isScreenshot(), null, chatMember.getChat().getUserName());
                 groupRepository.saveOptional(group);
             } else if (List.of(ChatMemberMember.STATUS, ChatMemberLeft.STATUS).contains(chatMember.getNewChatMember().getStatus())) {
                 groupRepository.findByGroupId(chatMember.getChat().getId()).ifPresent(groupRepository::delete);

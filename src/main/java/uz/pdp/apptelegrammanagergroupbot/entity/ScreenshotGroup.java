@@ -1,6 +1,8 @@
 package uz.pdp.apptelegrammanagergroupbot.entity;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import lombok.*;
 import org.hibernate.annotations.SQLRestriction;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
@@ -15,7 +17,6 @@ import java.sql.Timestamp;
 @Getter
 @ToString
 @Entity
-@SQLRestriction("active = false")
 public class ScreenshotGroup extends AbsLongEntity implements Serializable {
     private Long groupId;
 
@@ -25,6 +26,7 @@ public class ScreenshotGroup extends AbsLongEntity implements Serializable {
 
     private String path;
 
+    @Enumerated(EnumType.STRING)
     private ScreenshotStatus status;
 
     private boolean active;

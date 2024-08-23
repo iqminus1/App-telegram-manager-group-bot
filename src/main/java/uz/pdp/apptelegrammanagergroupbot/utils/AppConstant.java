@@ -112,4 +112,12 @@ public interface AppConstant {
     String CHANGE_TARIFF_ORDER_DATA = "changeTariffOrder";
     String DELETE_TARIFF_TEXT = "Удалить тарифа";
     String DELETE_TARIFF_DATA = "deleteTariff";
+    String CHANGE_TO_ONE_CARD_DATA = "changeAllGroupCards:";
+    String CHANGE_TO_ONE_CARD_TEXT = "Изменить всех карта на одну";
+    String SUCCESSFULLY_CHANGED_ONE_CARD = "Успешно изменено карта";
+    String HAVE_NOY_ANY_SCREENSHOT = "На этом канал или групп нету не одного оплата на карту";
+    String ACCEPT_SCREENSHOT_TEXT = "Принять✅";
+    String ACCEPT_SCREENSHOT_DATA = "acceptScreenshot:";
+    String REJECT_SCREENSHOT_TEXT = "Отмена❌";
+    String REJECT_SCREENSHOT_DATA = "rejectScreenshot:";
 }

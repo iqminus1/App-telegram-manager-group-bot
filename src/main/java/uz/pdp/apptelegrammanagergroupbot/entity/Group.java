@@ -31,4 +31,6 @@ public class Group extends AbsLongEntity implements Serializable {
     @OneToMany(mappedBy = "group",fetch = FetchType.EAGER)
     @ToString.Exclude
     private List<Tariff> tariffs;
+
+    private String name;
 }
