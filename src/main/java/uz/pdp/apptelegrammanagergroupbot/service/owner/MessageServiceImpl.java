@@ -14,6 +14,7 @@ import uz.pdp.apptelegrammanagergroupbot.enums.CodeType;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.*;
 import uz.pdp.apptelegrammanagergroupbot.service.admin.BotController;
+import uz.pdp.apptelegrammanagergroupbot.service.admin.www.Temp;
 import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
@@ -40,6 +41,7 @@ public class MessageServiceImpl implements MessageService {
     private final BotController botController;
     private final TariffRepository tariffRepository;
     private final GroupRepository groupRepository;
+    private final Temp temp;
 
     @Override
     public void process(Message message) {
@@ -92,6 +94,16 @@ public class MessageServiceImpl implements MessageService {
                     setTariffPrice(message);
                 } else if (user.getState().equals(StateEnum.SENDING_CARD_NUMBER_FOR_ONE)) {
                     addToOneCardNumber(message);
+                } else if (user.getState().equals(StateEnum.SENDING_CARD_NUMBER_FOR_ALL)) {
+                    changeAllCard(message);
+                } else if (user.getState().equals(StateEnum.CHANGE_TARIFF_PRICE)) {
+                    changeTariffPrice(message);
+                } else if (user.getState().equals(StateEnum.CHANGE_TARIFF_EXPIRE)) {
+                    changeTariffExpire(message);
+                } else if (user.getState().equals(StateEnum.CHANGE_TARIFF_NAME)) {
+                    changeTariffName(message);
+                } else if (user.getState().equals(StateEnum.CHANGE_TARIFF_ORDER)) {
+                    changeTariffOrder(message);
                 }
             } else if (message.hasPhoto()) {
                 if (user.getState().equals(StateEnum.OWNER_SENDING_PHOTO))
@@ -102,6 +114,90 @@ public class MessageServiceImpl implements MessageService {
                 }
             }
         }
+    }
+
+    private void changeTariffOrder(Message message) {
+        Long userId = message.getFrom().getId();
+        Tariff tempTariff = tempData.getTempTariff(userId);
+        List<Tariff> tariffs = tempTariff.getGroup().getTariffs();
+        try {
+            int orderBy = Integer.parseInt(message.getText());
+            tariffRepository.saveOptional(tempTariff);
+            tariffs.stream().filter(r -> r.getOrderBy() >= orderBy).toList().forEach(r -> r.setOrderBy(r.getOrderBy() + 1));
+            tempTariff.setOrderBy(orderBy);
+            for (Tariff tariff : tariffs) {
+                tariffRepository.saveOptional(tariff);
+            }
+            sendTariffChanges(message, tempTariff);
+        } catch (Exception e) {
+            ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_ORDER + (tariffs.size() + 1), null);
+        }
+    }
+
+    private void changeTariffName(Message message) {
+        Long userId = message.getFrom().getId();
+        String text = message.getText();
+        Tariff tempTariff = tempData.getTempTariff(userId);
+        tempTariff.setName(text);
+        tariffRepository.saveOptional(tempTariff);
+        sendTariffChanges(message, tempTariff);
+    }
+
+    private void changeTariffExpire(Message message) {
+        Long userId = message.getFrom().getId();
+        try {
+            int days = Integer.parseInt(message.getText());
+            Tariff tempTariff = tempData.getTempTariff(userId);
+            tempTariff.setDays(days);
+            tariffRepository.saveOptional(tempTariff);
+            sendTariffChanges(message, tempTariff);
+        } catch (Exception e) {
+            ownerBotSender.exe(userId, AppConstant.CORRECTLY_SEND_EXPIRE, null);
+        }
+    }
+
+    private void changeTariffPrice(Message message) {
+        Long userId = message.getFrom().getId();
+        try {
+            long price = Long.parseLong(message.getText());
+            Tariff tempTariff = tempData.getTempTariff(userId);
+            tempTariff.setPrice(price);
+            tariffRepository.saveOptional(tempTariff);
+            sendTariffChanges(message, tempTariff);
+        } catch (Exception e) {
+            ownerBotSender.exe(userId, AppConstant.CORRECTLY_SEND_PRICE, null);
+        }
+    }
+
+    private void sendTariffChanges(Message message, Tariff tariff) {
+        Long userId = message.getFrom().getId();
+        commonUtils.setState(userId, StateEnum.SETTINGS_TARIFF);
+        CallbackQuery callbackQuery = new CallbackQuery();
+        callbackQuery.setData(AppConstant.TARIFF_DATA + tariff.getId() + "+" + AppConstant.GROUP_DATA + tariff.getGroup().getGroupId());
+        callbackQuery.setFrom(message.getFrom());
+        callbackService.process(callbackQuery);
+    }
+
+    private void changeAllCard(Message message) {
+        Long userId = message.getFrom().getId();
+        String text = message.getText();
+
+
+        if (text.matches("\\d{16}")) { // Формат без пробелов
+            text = text.substring(0, 4) + " " +
+                    text.substring(4, 8) + " " +
+                    text.substring(8, 12) + " " +
+                    text.substring(12);
+        } else if (!text.matches("\\d{4} \\d{4} \\d{4} \\d{4}")) {
+            ownerBotSender.exe(userId, AppConstant.NOT_VALID_CARD_NUMBER, null);
+            return;
+        }
+        List<Group> groups = groupRepository.findAllByOwnerId(userId);
+        for (Group group : groups) {
+            group.setCardNumber(text);
+            groupRepository.saveOptional(group);
+        }
+        groupSettings(message);
     }
 
     private void seeAllScreenshots(Message message) {
@@ -178,7 +274,7 @@ public class MessageServiceImpl implements MessageService {
         }
 
         // Если формат карты некорректен
-        ownerBotSender.exe(userId, "Отправьте номер карты в правильном формате или нажмите на /start, если не хотите изменять.", null);
+        ownerBotSender.exe(userId, AppConstant.NOT_VALID_CARD_NUMBER, null);
     }
 
 
