@@ -1,5 +1,7 @@
 package uz.pdp.apptelegrammanagergroupbot.utils;
 
+import java.nio.file.Path;
+
 public interface AppConstant {
     String ABOUT_BOT = "О нас";
     String EXCEPTION = "Какойто ощибка";

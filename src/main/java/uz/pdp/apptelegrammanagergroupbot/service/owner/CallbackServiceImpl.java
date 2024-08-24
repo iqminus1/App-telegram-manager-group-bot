@@ -130,8 +130,10 @@ public class CallbackServiceImpl implements CallbackService {
         }
         for (ScreenshotGroup screenshot : screenshots) {
             SendPhoto sendPhoto = new SendPhoto();
-            sendPhoto.setChatId(userId);
-            sendPhoto.setPhoto(new InputFile(screenshot.getPath()));
+            InputFile inputFile = new InputFile();
+            String fileIdOrUrl = screenshot.getPath();
+            inputFile.setMedia(fileIdOrUrl);
+            sendPhoto.setPhoto(inputFile);
             sendPhoto.setReplyMarkup(buttonService.callbackKeyboard(List.of(Map.of(AppConstant.ACCEPT_SCREENSHOT_TEXT, AppConstant.ACCEPT_SCREENSHOT_DATA + screenshot.getSendUserId())), 1, false));
             try {
                 ownerBotSender.execute(sendPhoto);
