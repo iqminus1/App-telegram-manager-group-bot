@@ -93,6 +93,8 @@ public class CallbackServiceImpl implements CallbackService {
                 showGroupPaymentInfo(callbackQuery);
             } else if (data.startsWith(AppConstant.ADD_CARD_NUMBER_DATA)) {
                 addCardNumber(callbackQuery);
+            } else if (data.startsWith(AppConstant.CHANGE_TO_ONE_CARD_DATA)) {
+                changeToOneCard(callbackQuery);
             }
         } else if (user.getState().equals(StateEnum.SETTINGS_PAYMENT) || user.getState().equals(StateEnum.SETTINGS_TARIFF)) {
             if (callbackQuery.getData().startsWith("true:") || callbackQuery.getData().startsWith("false")) {
@@ -115,6 +117,16 @@ public class CallbackServiceImpl implements CallbackService {
         } else if (user.getState().equals(StateEnum.MANAGE_TARIFF)) {
             if (data.startsWith(AppConstant.BACK_DATA)) {
                 backToTariffList(callbackQuery);
+            } else if (data.startsWith(AppConstant.DELETE_TARIFF_DATA)) {
+                deleteTariff(callbackQuery);
+            } else if (data.startsWith(AppConstant.CHANGE_TARIFF_DAY_DATA)) {
+                changeTariffExpire(callbackQuery);
+            } else if (data.startsWith(AppConstant.CHANGE_TARIFF_NAME_DATA)) {
+                changeTariffName(callbackQuery);
+            } else if (data.startsWith(AppConstant.CHANGE_TARIFF_ORDER_DATA)) {
+                changeTariffOrder(callbackQuery);
+            } else if (data.startsWith(AppConstant.CHANGE_TARIFF_PRICE_DATA)) {
+                changeTariffPrice(callbackQuery);
             }
         } else if (user.getState().equals(StateEnum.SELECT_GROUP_FOR_SCREENSHOT)) {
             sendAllScreenshots(callbackQuery);
@@ -125,6 +137,51 @@ public class CallbackServiceImpl implements CallbackService {
                 rejectReq(callbackQuery);
             }
         }
+    }
+
+    private void addTariffToTemp(CallbackQuery callbackQuery, StateEnum stateEnum, String text) {
+        Long userId = callbackQuery.getFrom().getId();
+        ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
+        commonUtils.setState(userId, stateEnum);
+        ownerBotSender.exe(userId, text, null);
+        long tariffId = Long.parseLong(callbackQuery.getData().split("\\+")[0].split(":")[1]);
+        tempData.addTempTariff(userId, tariffRepository.findById(tariffId).orElseThrow());
+    }
+
+    private void changeTariffPrice(CallbackQuery callbackQuery) {
+        addTariffToTemp(callbackQuery, StateEnum.CHANGE_TARIFF_PRICE, AppConstant.SEND_TARIFF_PRICE);
+    }
+
+    private void changeTariffOrder(CallbackQuery callbackQuery) {
+        addTariffToTemp(callbackQuery, StateEnum.CHANGE_TARIFF_ORDER, AppConstant.SEND_TARIFF_ORDER);
+    }
+
+    private void changeTariffName(CallbackQuery callbackQuery) {
+        addTariffToTemp(callbackQuery, StateEnum.CHANGE_TARIFF_NAME, AppConstant.SEND_TARIFF_NAME);
+    }
+
+    private void changeTariffExpire(CallbackQuery callbackQuery) {
+        addTariffToTemp(callbackQuery, StateEnum.CHANGE_TARIFF_EXPIRE, AppConstant.SEND_TARIFF_EXPIRE);
+    }
+
+    private void deleteTariff(CallbackQuery callbackQuery) {
+        long tariffId = Long.parseLong(callbackQuery.getData().split("\\+")[0].split(":")[1]);
+        tariffRepository.findById(tariffId).ifPresent(tariffRepository::delete);
+        callbackQuery.setData(callbackQuery.getData().split("\\+")[1]);
+        manageGroupPrice(callbackQuery);
+    }
+
+    private void changeToOneCard(CallbackQuery callbackQuery) {
+        Long userId = callbackQuery.getFrom().getId();
+        List<Group> groups = groupRepository.findAllByOwnerId(userId);
+        Integer messageId = callbackQuery.getMessage().getMessageId();
+        ownerBotSender.deleteMessage(userId, messageId);
+        if (groups.isEmpty() || groups.size() == 1) {
+            ownerBotSender.exe(userId, AppConstant.EXCEPTION, null);
+            return;
+        }
+        ownerBotSender.exe(userId, AppConstant.SEND_CARD_NUMBER, null);
+        commonUtils.setState(userId, StateEnum.SENDING_CARD_NUMBER_FOR_ALL);
     }
 
     private void rejectReq(CallbackQuery callbackQuery) {
@@ -231,10 +288,12 @@ public class CallbackServiceImpl implements CallbackService {
         long groupId = Long.parseLong(split[1].split(":")[1]);
         Optional<Tariff> optionalTariff = tariffRepository.findById(tariffId);
         Long userId = callbackQuery.getFrom().getId();
-        Integer messageId = callbackQuery.getMessage().getMessageId();
         if (optionalTariff.isEmpty()) {
-            ownerBotSender.deleteMessage(userId, messageId);
-            ownerBotSender.exe(userId, AppConstant.EXCEPTION, buttonService.startButton(userId));
+            if (callbackQuery.getMessage() != null) {
+                Integer messageId = callbackQuery.getMessage().getMessageId();
+                ownerBotSender.deleteMessage(userId, messageId);
+                ownerBotSender.exe(userId, AppConstant.EXCEPTION, buttonService.startButton(userId));
+            }
             return;
         }
         Tariff tariff = optionalTariff.get();
@@ -254,9 +313,11 @@ public class CallbackServiceImpl implements CallbackService {
                 AppConstant.CHANGE_TARIFF_PRICE_TEXT,
                 AppConstant.CHANGE_TARIFF_PRICE_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
 
-        list.add(Map.of(
-                AppConstant.CHANGE_TARIFF_ORDER_TEXT,
-                AppConstant.CHANGE_TARIFF_ORDER_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+        if (tariff.getGroup().getTariffs().size() != 1) {
+            list.add(Map.of(
+                    AppConstant.CHANGE_TARIFF_ORDER_TEXT,
+                    AppConstant.CHANGE_TARIFF_ORDER_DATA + tariffId + "+" + AppConstant.GROUP_DATA + groupId));
+        }
 
         list.add(Map.of(
                 AppConstant.DELETE_TARIFF_TEXT,
@@ -264,8 +325,14 @@ public class CallbackServiceImpl implements CallbackService {
 
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + "+" + AppConstant.GROUP_DATA + groupId));
         commonUtils.setState(userId, StateEnum.MANAGE_TARIFF);
-        ownerBotSender.changeText(userId, messageId, sb);
-        ownerBotSender.changeKeyboard(userId, messageId, buttonService.callbackKeyboard(list, 1, false));
+        InlineKeyboardMarkup keyboardMarkup = buttonService.callbackKeyboard(list, 1, false);
+        if (callbackQuery.getMessage() != null) {
+            Integer messageId = callbackQuery.getMessage().getMessageId();
+            ownerBotSender.changeText(userId, messageId, sb);
+            ownerBotSender.changeKeyboard(userId, messageId, keyboardMarkup);
+            return;
+        }
+        ownerBotSender.exe(userId, sb, keyboardMarkup);
     }
 
 

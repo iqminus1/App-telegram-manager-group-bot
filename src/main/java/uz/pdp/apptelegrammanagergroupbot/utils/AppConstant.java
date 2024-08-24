@@ -4,7 +4,7 @@ import java.nio.file.Path;
 
 public interface AppConstant {
     String ABOUT_BOT = "О нас";
-    String EXCEPTION = "Какойто ощибка";
+    String EXCEPTION = "Какойто ощибка что бы дальще ехать вам нужно написать /start";
     String ABOUT_US_TEXT = "Создатели должни паполнит анкуте";
     String BOT_TOKEN = "7526831468:AAFTZllAKdDJEhih22K-gcyUja4Da_pE_54";
     String BOT_USERNAME = "manager_group_father_bot";
@@ -92,6 +92,8 @@ public interface AppConstant {
     String GROUP_DATA = "groupId:";
     String ADD_TARIFF_TEXT = "Добавить тариф";
     String ADD_TARIFF_DATA = "addTariff:";
+    String CORRECTLY_SEND_PRICE = "Отправте цену нормально или не меняйте цену напишите /start";
+    String CORRECTLY_SEND_EXPIRE = "Отправте срока на числох не нужно добавлят какойто слова или кое что";
 
     String SEND_TARIFF_NAME = "Отправте названия тарифа";
     String SEND_TARIFF_EXPIRE = "Отправте оно за сколько дней";
@@ -113,7 +115,7 @@ public interface AppConstant {
     String CHANGE_TARIFF_ORDER_TEXT = "Изменить очеред";
     String CHANGE_TARIFF_ORDER_DATA = "changeTariffOrder";
     String DELETE_TARIFF_TEXT = "Удалить тарифа";
-    String DELETE_TARIFF_DATA = "deleteTariff";
+    String DELETE_TARIFF_DATA = "deleteTariff:";
     String CHANGE_TO_ONE_CARD_DATA = "changeAllGroupCards:";
     String CHANGE_TO_ONE_CARD_TEXT = "Изменить всех карта на одну";
     String SUCCESSFULLY_CHANGED_ONE_CARD = "Успешно изменено карта";
@@ -127,4 +129,6 @@ public interface AppConstant {
     String ACCEPTED_TEXT = "Принито✅";
     String REJECTED_TEXT = "Отменено❌";
     String DONT_SEE = "Еще не расматрено";
+    String SEND_CARD_NUMBER = "Отправте номер карта";
+    String NOT_VALID_CARD_NUMBER = "Отправьте номер карты в правильном формате или нажмите на /start, если не хотите изменять.";
 }
