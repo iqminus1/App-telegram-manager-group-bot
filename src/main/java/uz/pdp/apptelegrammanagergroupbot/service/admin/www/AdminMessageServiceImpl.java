@@ -3,6 +3,7 @@ package uz.pdp.apptelegrammanagergroupbot.service.admin.www;
 import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.Message;
+import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
@@ -15,10 +16,7 @@ import uz.pdp.apptelegrammanagergroupbot.repository.ScreenshotGroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
 import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
+import java.util.*;
 
 @RequiredArgsConstructor
 public class AdminMessageServiceImpl implements AdminMessageService {
@@ -79,12 +77,15 @@ public class AdminMessageServiceImpl implements AdminMessageService {
             adminBotSender.exe(userId, AppConstant.EXCEPTION, adminButtonService.withString(List.of(AdminConstants.SHOW_PRICE, AdminConstants.CODE_TEXT), 1));
             return;
         }
-        String fileId = message.getPhoto().get(0).getFileId();
-        tempScreenshot.setPath(fileId);
+        List<PhotoSize> photo = message.getPhoto();
+        PhotoSize photoSize = photo.stream().max(Comparator.comparing(PhotoSize::getFileSize)).get();
+        String filePath = adminBotSender.savePhoto(photoSize);
+        tempScreenshot.setPath(filePath);
         screenshotGroupRepository.save(tempScreenshot);
         adminUserState.setState(userId, StateEnum.START);
         adminBotSender.exe(userId, AdminConstants.SUCCESSFULLY_GETTING_PHOTO, null);
     }
+
 
     private void checkJoinCode(Message message, Long adminId) {
         Long userId = message.getFrom().getId();

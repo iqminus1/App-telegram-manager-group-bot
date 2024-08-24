@@ -2,6 +2,7 @@ package uz.pdp.apptelegrammanagergroupbot.service.admin.www;
 
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.ApproveChatJoinRequest;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.DeclineChatJoinRequest;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChat;
@@ -9,14 +10,19 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.File;
+import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import uz.pdp.apptelegrammanagergroupbot.entity.JoinGroupRequest;
 
 public class AdminBotSender extends DefaultAbsSender {
+    private final String token;
+
     public AdminBotSender(String token) {
         super(new DefaultBotOptions(), token);
+        this.token = token;
     }
 
     public void exe(Long userId, String text, ReplyKeyboard keyboard) {
@@ -80,6 +86,16 @@ public class AdminBotSender extends DefaultAbsSender {
         editMessageReplyMarkup.setReplyMarkup((InlineKeyboardMarkup) keyboardMarkup);
         try {
             execute(editMessageReplyMarkup);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public String savePhoto(PhotoSize photoSize) {
+        GetFile getFile = new GetFile(photoSize.getFileId());
+        try {
+            File execute = execute(getFile);
+            return execute.getFileUrl(token);
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
