@@ -31,12 +31,15 @@ public class JoinRequestServiceImpl implements JoinRequestService {
         sendMessage.setText(AdminConstants.FOR_JOIN);
         ReplyKeyboard replyKeyboard = adminButtonService.withString(List.of(AdminConstants.SHOW_PRICE, AdminConstants.CODE_TEXT), 1);
         sendMessage.setReplyMarkup(replyKeyboard);
+        Long groupId = chatJoinRequest.getChat().getId();
         try {
             botSender.execute(sendMessage);
-            joinGroupRequestRepository.saveOptional(new JoinGroupRequest(userId, chatJoinRequest.getChat().getId()));
+            if (joinGroupRequestRepository.findByUserIdAndGroupId(userId, groupId).isEmpty()) {
+                joinGroupRequestRepository.saveOptional(new JoinGroupRequest(userId, groupId));
+            }
         } catch (TelegramApiException e) {
-            botSender.acceptJoinRequest(userId, chatJoinRequest.getChat().getId());
-            botSender.revokeJoinRequest(userId, chatJoinRequest.getChat().getId());
+            botSender.acceptJoinRequest(userId, groupId);
+            botSender.revokeJoinRequest(userId, groupId);
             sendMessage.setText(AdminConstants.CLICK_JOIN_REQ + chatJoinRequest.getInviteLink());
         }
     }

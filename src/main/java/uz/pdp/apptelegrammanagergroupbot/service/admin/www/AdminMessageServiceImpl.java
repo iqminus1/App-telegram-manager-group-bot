@@ -8,6 +8,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import uz.pdp.apptelegrammanagergroupbot.entity.*;
+import uz.pdp.apptelegrammanagergroupbot.enums.ScreenshotStatus;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.CodeGroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
@@ -79,9 +80,17 @@ public class AdminMessageServiceImpl implements AdminMessageService {
         }
         List<PhotoSize> photo = message.getPhoto();
         PhotoSize photoSize = photo.stream().max(Comparator.comparing(PhotoSize::getFileSize)).get();
-        String filePath = adminBotSender.savePhoto(photoSize);
+        String filePath = adminBotSender.getFilePath(photoSize);
         tempScreenshot.setPath(filePath);
-        screenshotGroupRepository.save(tempScreenshot);
+        Optional<ScreenshotGroup> optionalScreenshotGroup = screenshotGroupRepository.findByGroupIdAndSendUserIdAndStatus(tempScreenshot.getGroupId(), tempScreenshot.getSendUserId(), ScreenshotStatus.DONT_SEE);
+        if (optionalScreenshotGroup.isEmpty()) {
+            screenshotGroupRepository.saveOptional(tempScreenshot);
+        } else {
+            ScreenshotGroup screenshotGroup = optionalScreenshotGroup.get();
+            screenshotGroup.setPath(tempScreenshot.getPath());
+            screenshotGroup.setTariffId(tempScreenshot.getTariffId());
+            screenshotGroupRepository.saveOptional(screenshotGroup);
+        }
         adminUserState.setState(userId, StateEnum.START);
         adminBotSender.exe(userId, AdminConstants.SUCCESSFULLY_GETTING_PHOTO, null);
     }
@@ -135,7 +144,7 @@ public class AdminMessageServiceImpl implements AdminMessageService {
         int i = 1;
         for (JoinGroupRequest request : requests) {
             if (requests.size() != 1) {
-                sb.append(i).append(". ");
+                sb.append(i++).append(". ");
             }
             sb.append(adminBotSender.getChatName(request.getGroupId())).append("\n");
             list.add(Map.of(

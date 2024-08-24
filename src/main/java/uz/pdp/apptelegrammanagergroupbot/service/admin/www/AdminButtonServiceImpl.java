@@ -44,12 +44,13 @@ public class AdminButtonServiceImpl implements AdminButtonService {
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         List<InlineKeyboardButton> row = new ArrayList<>();
         int i = 1;
+        int j = 1;
         for (Map<String, String> map : textData) {
 
             for (String text : map.keySet()) {
                 InlineKeyboardButton button = new InlineKeyboardButton();
                 button.setCallbackData(map.get(text));
-                if (isIncremented) text = i + ". " + text;
+                if (isIncremented) text = j + ". " + text;
                 button.setText(text);
                 row.add(button);
             }
@@ -60,6 +61,7 @@ public class AdminButtonServiceImpl implements AdminButtonService {
                 i = 0;
             }
             i++;
+            j++;
 
         }
         markup.setKeyboard(rows);

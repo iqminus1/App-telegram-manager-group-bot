@@ -19,6 +19,7 @@ import uz.pdp.apptelegrammanagergroupbot.service.owner.temp.TempData;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 import uz.pdp.apptelegrammanagergroupbot.utils.CommonUtils;
 
+import java.io.File;
 import java.sql.Timestamp;
 import java.util.*;
 
@@ -36,8 +37,9 @@ public class CallbackServiceImpl implements CallbackService {
     private final TariffRepository tariffRepository;
     private final CodeGroupRepository codeGroupRepository;
     private final ScreenshotGroupRepository screenshotGroupRepository;
+    private final JoinGroupRequestRepository joinGroupRequestRepository;
 
-    public CallbackServiceImpl(CommonUtils commonUtils, ButtonService buttonService, TempData tempData, OwnerBotSender ownerBotSender, DontUsedCodePermissionRepository dontUsedCodePermissionRepository, UserPermissionRepository userPermissionRepository, GroupRepository groupRepository, @Lazy MessageService messageService, CodeService codeService, TariffRepository tariffRepository, CodeGroupRepository codeGroupRepository, ScreenshotGroupRepository screenshotGroupRepository) {
+    public CallbackServiceImpl(CommonUtils commonUtils, ButtonService buttonService, TempData tempData, OwnerBotSender ownerBotSender, DontUsedCodePermissionRepository dontUsedCodePermissionRepository, UserPermissionRepository userPermissionRepository, GroupRepository groupRepository, @Lazy MessageService messageService, CodeService codeService, TariffRepository tariffRepository, CodeGroupRepository codeGroupRepository, ScreenshotGroupRepository screenshotGroupRepository, JoinGroupRequestRepository joinGroupRequestRepository) {
         this.commonUtils = commonUtils;
         this.buttonService = buttonService;
         this.tempData = tempData;
@@ -50,6 +52,7 @@ public class CallbackServiceImpl implements CallbackService {
         this.tariffRepository = tariffRepository;
         this.codeGroupRepository = codeGroupRepository;
         this.screenshotGroupRepository = screenshotGroupRepository;
+        this.joinGroupRequestRepository = joinGroupRequestRepository;
     }
 
     @Override
@@ -115,16 +118,58 @@ public class CallbackServiceImpl implements CallbackService {
             }
         } else if (user.getState().equals(StateEnum.SELECT_GROUP_FOR_SCREENSHOT)) {
             sendAllScreenshots(callbackQuery);
+        } else if (user.getState().equals(StateEnum.ON_SCREENSHOTS)) {
+            if (data.startsWith(AppConstant.ACCEPT_SCREENSHOT_DATA)) {
+                acceptReq(callbackQuery);
+            } else if (data.startsWith(AppConstant.REJECT_SCREENSHOT_DATA)) {
+                rejectReq(callbackQuery);
+            }
         }
+    }
+
+    private void rejectReq(CallbackQuery callbackQuery) {
+        rejAccRequests(callbackQuery, ScreenshotStatus.REJECT, AppConstant.REJECTED_TEXT, false);
+    }
+
+    private void rejAccRequests(CallbackQuery callbackQuery, ScreenshotStatus status, String text, boolean isActive) {
+        String data = callbackQuery.getData();
+        String[] split = data.split("\\+");
+        long userId = Long.parseLong(split[0].split(":")[1]);
+        long groupId = Long.parseLong(split[1].split(":")[1]);
+        long screenshotId = Long.parseLong(split[2].split(":")[1]);
+        Optional<JoinGroupRequest> optionalRequest = joinGroupRequestRepository.findByUserIdAndGroupId(userId, groupId);
+        if (optionalRequest.isEmpty()) {
+            ownerBotSender.deleteMessage(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId());
+            return;
+        }
+        ScreenshotGroup screenshotGroup = screenshotGroupRepository.findById(screenshotId).orElseThrow();
+        screenshotGroup.setActive(isActive);
+        screenshotGroup.setActiveDate(new Timestamp(System.currentTimeMillis()));
+        screenshotGroup.setStatus(status);
+        screenshotGroupRepository.saveOptional(screenshotGroup);
+        JoinGroupRequest joinGroupRequest = optionalRequest.get();
+        if (data.startsWith(AppConstant.REJECT_SCREENSHOT_DATA))
+            ownerBotSender.revokeJoinRequest(joinGroupRequest);
+        else
+            ownerBotSender.acceptRequest(joinGroupRequest);
+
+        joinGroupRequestRepository.delete(joinGroupRequest);
+        ownerBotSender.changeCaption(callbackQuery.getFrom().getId(), callbackQuery.getMessage().getMessageId(), text);
+
+    }
+
+    private void acceptReq(CallbackQuery callbackQuery) {
+        rejAccRequests(callbackQuery, ScreenshotStatus.ACCEPT, AppConstant.ACCEPTED_TEXT, true);
     }
 
     private void sendAllScreenshots(CallbackQuery callbackQuery) {
         long groupId = Long.parseLong(callbackQuery.getData().split(":")[1]);
         List<ScreenshotGroup> screenshots = screenshotGroupRepository.findAllByGroupIdAndStatus(groupId, ScreenshotStatus.DONT_SEE);
         Long userId = callbackQuery.getFrom().getId();
+        Integer messageId = callbackQuery.getMessage().getMessageId();
         if (screenshots.isEmpty()) {
             commonUtils.setState(userId, StateEnum.START);
-            ownerBotSender.deleteMessage(userId, callbackQuery.getMessage().getMessageId());
+            ownerBotSender.deleteMessage(userId, messageId);
             ownerBotSender.exe(userId, AppConstant.HAVE_NOY_ANY_SCREENSHOT, buttonService.startButton(userId));
             return;
         }
@@ -132,15 +177,29 @@ public class CallbackServiceImpl implements CallbackService {
             SendPhoto sendPhoto = new SendPhoto();
             InputFile inputFile = new InputFile();
             String fileIdOrUrl = screenshot.getPath();
-            inputFile.setMedia(fileIdOrUrl);
+            inputFile.setMedia(new File(fileIdOrUrl));
             sendPhoto.setPhoto(inputFile);
-            sendPhoto.setReplyMarkup(buttonService.callbackKeyboard(List.of(Map.of(AppConstant.ACCEPT_SCREENSHOT_TEXT, AppConstant.ACCEPT_SCREENSHOT_DATA + screenshot.getSendUserId())), 1, false));
+            sendPhoto.setChatId(userId);
+            sendPhoto.setCaption(AppConstant.DONT_SEE);
+            Map<String, String> map = getScreenshotData(screenshot);
+            InlineKeyboardMarkup replyMarkup = buttonService.callbackKeyboard(List.of(map), 1, false);
+            sendPhoto.setReplyMarkup(replyMarkup);
             try {
                 ownerBotSender.execute(sendPhoto);
             } catch (TelegramApiException e) {
                 throw new RuntimeException(e);
             }
         }
+        ownerBotSender.deleteMessage(userId, messageId);
+        commonUtils.setState(userId, StateEnum.ON_SCREENSHOTS);
+        ownerBotSender.exe(userId, AppConstant.FOR_BUTTON_SEND_START, null);
+    }
+
+    private static Map<String, String> getScreenshotData(ScreenshotGroup screenshot) {
+        Map<String, String> map = new LinkedHashMap<>();
+        map.put(AppConstant.ACCEPT_SCREENSHOT_TEXT, AppConstant.ACCEPT_SCREENSHOT_DATA + screenshot.getSendUserId() + "+" + AppConstant.GROUP_DATA + screenshot.getGroupId() + "+" + AppConstant.GROUP_DATA + screenshot.getId());
+        map.put(AppConstant.REJECT_SCREENSHOT_TEXT, AppConstant.REJECT_SCREENSHOT_DATA + screenshot.getSendUserId() + "+" + AppConstant.GROUP_DATA + screenshot.getGroupId() + "+" + AppConstant.GROUP_DATA + screenshot.getId());
+        return map;
     }
 
     private void addCardNumber(CallbackQuery callbackQuery) {
@@ -206,7 +265,7 @@ public class CallbackServiceImpl implements CallbackService {
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + "+" + AppConstant.GROUP_DATA + groupId));
         commonUtils.setState(userId, StateEnum.MANAGE_TARIFF);
         ownerBotSender.changeText(userId, messageId, sb);
-        ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) buttonService.callbackKeyboard(list, 1, false));
+        ownerBotSender.changeKeyboard(userId, messageId, buttonService.callbackKeyboard(list, 1, false));
     }
 
 
@@ -274,7 +333,7 @@ public class CallbackServiceImpl implements CallbackService {
         }
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
         ownerBotSender.changeText(userId, messageId, sb.toString());
-        ownerBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) buttonService.callbackKeyboard(list, 1, false));
+        ownerBotSender.changeKeyboard(userId, messageId, buttonService.callbackKeyboard(list, 1, false));
     }
 
     private void addTariff(CallbackQuery callbackQuery) {
@@ -343,8 +402,12 @@ public class CallbackServiceImpl implements CallbackService {
         }
         list.add(Map.of(AppConstant.ADD_TARIFF_TEXT, AppConstant.ADD_TARIFF_DATA + "+" + AppConstant.GROUP_DATA + groupId));
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + groupId));
+        if (callbackQuery.getMessage() == null) {
+            ownerBotSender.exe(userId, sb.toString(), buttonService.callbackKeyboard(list, 1, false));
+            return;
+        }
         changeText(callbackQuery, sb.toString());
-        changeReply(callbackQuery, (InlineKeyboardMarkup) buttonService.callbackKeyboard(list, 1, false));
+        changeReply(callbackQuery, buttonService.callbackKeyboard(list, 1, false));
     }
 
     @Override
@@ -462,9 +525,9 @@ public class CallbackServiceImpl implements CallbackService {
             list.add(map);
         }
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + groupId));
-        ReplyKeyboard replyKeyboard = buttonService.callbackKeyboard(list, 1, false);
+        InlineKeyboardMarkup replyKeyboard = buttonService.callbackKeyboard(list, 1, false);
         changeText(callbackQuery, sb.toString());
-        changeReply(callbackQuery, (InlineKeyboardMarkup) replyKeyboard);
+        changeReply(callbackQuery, replyKeyboard);
     }
 
     private void changeAdminPermissionStatus(CallbackQuery callbackQuery) {
