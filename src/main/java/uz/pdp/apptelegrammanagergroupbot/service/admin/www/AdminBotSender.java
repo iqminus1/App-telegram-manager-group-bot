@@ -1,5 +1,6 @@
 package uz.pdp.apptelegrammanagergroupbot.service.admin.www;
 
+import org.springframework.util.StreamUtils;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
@@ -16,6 +17,16 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMa
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import uz.pdp.apptelegrammanagergroupbot.entity.JoinGroupRequest;
+import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.net.URL;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.UUID;
 
 public class AdminBotSender extends DefaultAbsSender {
     private final String token;
@@ -91,12 +102,29 @@ public class AdminBotSender extends DefaultAbsSender {
         }
     }
 
-    public String savePhoto(PhotoSize photoSize) {
+    public String getFilePath(PhotoSize photoSize) {
         GetFile getFile = new GetFile(photoSize.getFileId());
         try {
             File execute = execute(getFile);
-            return execute.getFileUrl(token);
-        } catch (TelegramApiException e) {
+
+            String fileUrl = execute.getFileUrl(token);
+
+            String fileName = UUID.randomUUID().toString();
+            String[] split = fileUrl.split("\\.");
+            String fileExtension = split[split.length - 1];
+            String filePath = fileName + "." + fileExtension;
+
+            Path targetPath = Paths.get(AppConstant.FILE_PATH, filePath);
+
+            Files.createDirectories(targetPath.getParent());
+
+            try (InputStream inputStream = new URL(fileUrl).openStream();
+                 OutputStream outputStream = Files.newOutputStream(targetPath)) {
+                StreamUtils.copy(inputStream, outputStream);
+            }
+
+            return targetPath.toString();
+        } catch (TelegramApiException | IOException e) {
             throw new RuntimeException(e);
         }
     }

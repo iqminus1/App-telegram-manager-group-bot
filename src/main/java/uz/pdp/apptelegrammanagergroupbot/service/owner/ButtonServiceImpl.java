@@ -52,18 +52,19 @@ public class ButtonServiceImpl implements ButtonService {
     }
 
     @Override
-    public ReplyKeyboard callbackKeyboard(List<Map<String, String>> textData, int rowSize, boolean isIncremented) {
+    public InlineKeyboardMarkup callbackKeyboard(List<Map<String, String>> textData, int rowSize, boolean isIncremented) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
         List<InlineKeyboardButton> row = new ArrayList<>();
         int i = 1;
+        int g = 1;
         for (Map<String, String> map : textData) {
 
             for (String text : map.keySet()) {
                 InlineKeyboardButton button = new InlineKeyboardButton();
                 button.setCallbackData(map.get(text));
-                if (isIncremented) text = i + ". " + text;
+                if (isIncremented) text = g++ + ". " + text;
                 button.setText(text);
                 row.add(button);
             }
@@ -208,7 +209,7 @@ public class ButtonServiceImpl implements ButtonService {
             return null;
         }
         UserPermission userPermission = optionalUserPermission.get();
-        if (!checkString(userPermission.getBotToken()) || !checkString(userPermission.getBotUsername())) {
+        if (checkString(userPermission.getBotToken()) || checkString(userPermission.getBotUsername())) {
             ownerBotSender.exe(userId, AppConstant.FULLY_SEND_BOT_TOKEN_OR_USERNAME, null);
             return null;
         }
@@ -240,6 +241,6 @@ public class ButtonServiceImpl implements ButtonService {
     }
 
     private boolean checkString(String str) {
-        return str != null && !str.isEmpty() && !str.isBlank();
+        return str == null || str.isEmpty() || str.isBlank();
     }
 }

@@ -10,7 +10,7 @@ import java.util.Map;
 public interface ButtonService {
     ReplyKeyboard withString(List<String> list, int rowSize);
 
-    ReplyKeyboard callbackKeyboard(List<Map<String, String>> textData, int rowSize, boolean isIncremented);
+    InlineKeyboardMarkup callbackKeyboard(List<Map<String, String>> textData, int rowSize, boolean isIncremented);
 
     ReplyKeyboard withData(List<String> buttons, int rowSize);
 

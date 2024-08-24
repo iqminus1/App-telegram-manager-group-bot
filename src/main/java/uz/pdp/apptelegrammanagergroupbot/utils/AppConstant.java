@@ -122,4 +122,9 @@ public interface AppConstant {
     String ACCEPT_SCREENSHOT_DATA = "acceptScreenshot:";
     String REJECT_SCREENSHOT_TEXT = "Отмена❌";
     String REJECT_SCREENSHOT_DATA = "rejectScreenshot:";
+    String FILE_PATH = "C:\\Users\\User\\Desktop\\App-telegram-manager-group-bot\\files";
+    String FOR_BUTTON_SEND_START = "После закончения проверки вам нужно написать /start";
+    String ACCEPTED_TEXT = "Принито✅";
+    String REJECTED_TEXT = "Отменено❌";
+    String DONT_SEE = "Еще не расматрено";
 }

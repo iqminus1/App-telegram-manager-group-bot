@@ -40,7 +40,6 @@ public class MessageServiceImpl implements MessageService {
     private final BotController botController;
     private final TariffRepository tariffRepository;
     private final GroupRepository groupRepository;
-    private final ScreenshotGroupRepository screenshotGroupRepository;
 
     @Override
     public void process(Message message) {
@@ -124,7 +123,7 @@ public class MessageServiceImpl implements MessageService {
                 if (allByOwnerId.size() != 1) {
                     sb.append(i).append(". ");
                 }
-                sb.append(group.getName());
+                sb.append(group.getName()).append("\n");
                 list.add(Map.of(group.getName(), AppConstant.GROUP_DATA + group.getGroupId()));
             }
         }
@@ -285,7 +284,7 @@ public class MessageServiceImpl implements MessageService {
             ownerBotSender.exe(userId, AppConstant.FIRST_OR_SECOND_ORDER, null);
             return;
         }
-        ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_ORDER + tariffs.size() + 1, null);
+        ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_ORDER + (tariffs.size() + 1), null);
     }
 
     private void groupSettings(Message message) {
