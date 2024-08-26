@@ -330,8 +330,10 @@ public class MessageServiceImpl implements MessageService {
             return;
         }
         List<Tariff> tariffs = optional.get().getTariffs();
-        tariffs.stream().filter(tariff -> tariff.getOrderBy() >= tempTariff.getOrderBy()).forEach(tariff -> tariff.setOrderBy(tariff.getOrderBy() + 1));
-        tariffRepository.saveAll(tariffs);
+        if (tariffs != null) {
+            tariffs.stream().filter(tariff -> tariff.getOrderBy() >= tempTariff.getOrderBy()).forEach(tariff -> tariff.setOrderBy(tariff.getOrderBy() + 1));
+            tariffRepository.saveAll(tariffs);
+        }
         tariffRepository.saveOptional(tempTariff);
         commonUtils.setState(userId, StateEnum.SETTINGS_GROUP);
         CallbackQuery callbackQuery = new CallbackQuery();
@@ -369,7 +371,7 @@ public class MessageServiceImpl implements MessageService {
         Tariff tempTariff = tempData.getTempTariff(userId);
         tempTariff.setName(text);
         List<Tariff> tariffs = tempTariff.getGroup().getTariffs();
-        if (tariffs.isEmpty()) {
+        if (tariffs == null || tariffs.isEmpty()) {
             tempTariff.setOrderBy(1);
             commonUtils.setState(userId, StateEnum.SENDING_TARIFF_EXPIRE);
             ownerBotSender.exe(userId, AppConstant.SEND_TARIFF_EXPIRE, null);

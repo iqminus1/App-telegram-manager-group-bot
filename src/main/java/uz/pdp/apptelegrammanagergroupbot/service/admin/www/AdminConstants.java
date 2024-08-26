@@ -23,4 +23,5 @@ public interface AdminConstants {
     String SUCCESSFULLY_JOINED = "Успешно вступали группу";
     String SEND_PHOTO = "Отправте на карте ->%s сумов и скинте фото";
     String SUCCESSFULLY_GETTING_PHOTO = "Успещно взяли фото и бот доставить фото на админа и проверяеть если реально папало в счет  примут а то нет...";
+    String LINK_NAME = "Создать от бота";
 }

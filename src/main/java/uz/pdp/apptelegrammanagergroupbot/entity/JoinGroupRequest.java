@@ -3,7 +3,6 @@ package uz.pdp.apptelegrammanagergroupbot.entity;
 import jakarta.persistence.Entity;
 import lombok.*;
 import uz.pdp.apptelegrammanagergroupbot.entity.temp.AbsLongEntity;
-import uz.pdp.apptelegrammanagergroupbot.enums.JoinTypeEnum;
 
 import java.io.Serializable;
 

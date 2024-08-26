@@ -12,9 +12,11 @@ import java.util.concurrent.ConcurrentHashMap;
 @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class Temp {
     private final Map<Long, ScreenshotGroup> screenshotGroupMap = new ConcurrentHashMap<>();
+    private final Map<Long, Long> tempTariffId = new ConcurrentHashMap<>();
 
     public void removeTempDataByUser(Long userId) {
         screenshotGroupMap.remove(userId);
+        tempTariffId.remove(userId);
     }
 
     public void addScreenshotGroup(Long userId, ScreenshotGroup screenshotGroup) {
@@ -26,5 +28,16 @@ public class Temp {
             return screenshotGroupMap.get(userId);
         }
         return null;
+    }
+
+    public void addTariffId(Long userId, long tariffId) {
+        tempTariffId.put(userId, tariffId);
+    }
+
+    public long getTariffId(Long userId) {
+        if (tempTariffId.containsKey(userId)) {
+            return tempTariffId.get(userId);
+        }
+        return 0;
     }
 }
