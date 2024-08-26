@@ -10,13 +10,9 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import uz.pdp.apptelegrammanagergroupbot.entity.*;
 import uz.pdp.apptelegrammanagergroupbot.enums.ScreenshotStatus;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
-import uz.pdp.apptelegrammanagergroupbot.repository.CodeGroupRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.JoinGroupRequestRepository;
-import uz.pdp.apptelegrammanagergroupbot.repository.ScreenshotGroupRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.*;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
-import java.sql.Timestamp;
 import java.util.*;
 
 @RequiredArgsConstructor
@@ -29,6 +25,7 @@ public class AdminMessageServiceImpl implements AdminMessageService {
     private final Temp temp;
     private final CodeGroupRepository codeGroupRepository;
     private final ScreenshotGroupRepository screenshotGroupRepository;
+    private final TariffRepository tariffRepository;
 
     @Override
 
@@ -98,32 +95,16 @@ public class AdminMessageServiceImpl implements AdminMessageService {
 
     private void checkJoinCode(Message message, Long adminId) {
         Long userId = message.getFrom().getId();
-        List<Group> byOwnerId = groupRepository.findAllByOwnerId(adminId);
-        if (byOwnerId.isEmpty()) {
-            adminUserState.setState(userId, StateEnum.START);
-            adminBotSender.exe(userId, AdminConstants.INVALID_CODE, showRequestLists(userId, adminId).getReplyMarkup());
+        long tariffId = temp.getTariffId(userId);
+        Tariff tariff = tariffRepository.findById(userId).get();
+        Long groupId = tariff.getGroup().getGroupId();
+        Optional<CodeGroup> optional = codeGroupRepository.findByCodeAndGroupId(message.getText(), groupId);
+        if (optional.isEmpty()) {
+
             return;
         }
-        for (Group group : byOwnerId) {
-            Optional<CodeGroup> optionalCodeGroup = codeGroupRepository.findByCodeAndGroupId(message.getText(), group.getGroupId());
-            if (optionalCodeGroup.isPresent()) {
-                CodeGroup code = optionalCodeGroup.get();
-                code.setActive(true);
-                code.setActiveAt(new Timestamp(System.currentTimeMillis()));
-                code.setUserId(userId);
-                codeGroupRepository.saveOptional(code);
-                joinGroupRequestRepository.findByUserIdAndGroupId(userId, group.getGroupId()).ifPresent(req -> {
-                    adminBotSender.acceptJoinRequest(req);
-                    joinGroupRequestRepository.delete(req);
-                });
-                adminUserState.setState(userId, StateEnum.START);
-                adminBotSender.exe(userId, AdminConstants.SUCCESSFULLY_JOINED, new ReplyKeyboardRemove(true));
-                return;
-            }
-
-            adminUserState.setState(userId, StateEnum.START);
-            adminBotSender.exe(userId, AdminConstants.INVALID_CODE, null);
-        }
+        codeGroupRepository.delete(optional.get());
+        adminBotSender.getLink(groupId);
     }
 
 

@@ -459,13 +459,16 @@ public class CallbackServiceImpl implements CallbackService {
         sb.append(group.getName()).append(": ").append("\n\n").append("-----Тарафи-----");
         int i = 1;
         List<Tariff> tariffs = group.getTariffs();
-        Collections.sort(tariffs);
-        for (Tariff tariff : tariffs) {
-            sb.append("\n").append(i++).append(". ").append(tariff.getName()).append("\n-----------");
+        if (tariffs!=null && !tariffs.isEmpty()) {
 
-            Map<String, String> map = new HashMap<>();
-            map.put(tariff.getName(), AppConstant.TARIFF_DATA + tariff.getId() + "+" + AppConstant.GROUP_DATA + groupId);
-            list.add(map);
+            Collections.sort(tariffs);
+            for (Tariff tariff : tariffs) {
+                sb.append("\n").append(i++).append(". ").append(tariff.getName()).append("\n-----------");
+
+                Map<String, String> map = new HashMap<>();
+                map.put(tariff.getName(), AppConstant.TARIFF_DATA + tariff.getId() + "+" + AppConstant.GROUP_DATA + groupId);
+                list.add(map);
+            }
         }
         list.add(Map.of(AppConstant.ADD_TARIFF_TEXT, AppConstant.ADD_TARIFF_DATA + "+" + AppConstant.GROUP_DATA + groupId));
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + groupId));

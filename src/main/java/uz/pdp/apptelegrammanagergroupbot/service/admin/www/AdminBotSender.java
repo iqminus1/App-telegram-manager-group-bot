@@ -4,13 +4,12 @@ import org.springframework.util.StreamUtils;
 import org.telegram.telegrambots.bots.DefaultAbsSender;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.ApproveChatJoinRequest;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.DeclineChatJoinRequest;
-import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChat;
+import org.telegram.telegrambots.meta.api.methods.groupadministration.*;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.ChatInviteLink;
 import org.telegram.telegrambots.meta.api.objects.File;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -59,12 +58,15 @@ public class AdminBotSender extends DefaultAbsSender {
         }
     }
 
-    public void acceptJoinRequest(Long userId, Long groupId) {
-        acceptJoinRequest(new JoinGroupRequest(userId, groupId));
-    }
-
-    public void revokeJoinRequest(Long userId, Long groupId) {
-        revokeJoinRequest(new JoinGroupRequest(userId, groupId));
+    public void kickChatMember(JoinGroupRequest joinGroupRequest) {
+        BanChatMember banChatMember = new BanChatMember(joinGroupRequest.getGroupId().toString(), joinGroupRequest.getUserId());
+        try {
+            execute(banChatMember);
+            UnbanChatMember unbanChatMember = new UnbanChatMember(joinGroupRequest.getGroupId().toString(), joinGroupRequest.getUserId());
+            execute(unbanChatMember);
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     public void revokeJoinRequest(JoinGroupRequest joinRequest) {
@@ -90,17 +92,19 @@ public class AdminBotSender extends DefaultAbsSender {
         }
     }
 
-    public void changeKeyboard(Long userId, Integer messageId, ReplyKeyboard keyboardMarkup) {
+    public void changeKeyboard(Long chatId, Integer messageId, InlineKeyboardMarkup keyboardMarkup) {
         EditMessageReplyMarkup editMessageReplyMarkup = new EditMessageReplyMarkup();
-        editMessageReplyMarkup.setChatId(userId);
+        editMessageReplyMarkup.setChatId(chatId);
         editMessageReplyMarkup.setMessageId(messageId);
-        editMessageReplyMarkup.setReplyMarkup((InlineKeyboardMarkup) keyboardMarkup);
+        editMessageReplyMarkup.setReplyMarkup(keyboardMarkup);
+
         try {
             execute(editMessageReplyMarkup);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            throw new RuntimeException("Error executing change keyboard: " + e.getMessage(), e);
         }
     }
+
 
     public String getFilePath(PhotoSize photoSize) {
         GetFile getFile = new GetFile(photoSize.getFileId());
@@ -144,6 +148,42 @@ public class AdminBotSender extends DefaultAbsSender {
             execute(new DeleteMessage(userId.toString(), messageId));
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    public void exe(Long userId, String text) {
+        try {
+            execute(new SendMessage(userId.toString(), text));
+        } catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public void openChat(Long userId, Long groupId) {
+        JoinGroupRequest joinGroupRequest = new JoinGroupRequest(userId, groupId);
+        acceptJoinRequest(joinGroupRequest);
+        kickChatMember(joinGroupRequest);
+    }
+
+    public String getLink(Long groupId) {
+        try {
+            EditChatInviteLink editChatInviteLink = new EditChatInviteLink();
+            editChatInviteLink.setChatId(groupId);
+            editChatInviteLink.setName(AdminConstants.LINK_NAME);
+            ChatInviteLink execute = execute(editChatInviteLink);
+            return execute.getInviteLink();
+        } catch (TelegramApiException e) {
+            CreateChatInviteLink createChatInviteLink = new CreateChatInviteLink();
+            createChatInviteLink.setChatId(groupId);
+            createChatInviteLink.setCreatesJoinRequest(true);
+            createChatInviteLink.setName(AdminConstants.LINK_NAME);
+            ChatInviteLink execute = null;
+            try {
+                execute = execute(createChatInviteLink);
+            } catch (TelegramApiException ex) {
+                throw new RuntimeException(ex);
+            }
+            return execute.getInviteLink();
         }
     }
 }

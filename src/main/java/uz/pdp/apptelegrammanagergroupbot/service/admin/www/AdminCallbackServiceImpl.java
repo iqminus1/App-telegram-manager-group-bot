@@ -4,7 +4,6 @@ import lombok.RequiredArgsConstructor;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboard;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import uz.pdp.apptelegrammanagergroupbot.entity.Group;
 import uz.pdp.apptelegrammanagergroupbot.entity.ScreenshotGroup;
@@ -14,6 +13,7 @@ import uz.pdp.apptelegrammanagergroupbot.enums.ScreenshotStatus;
 import uz.pdp.apptelegrammanagergroupbot.enums.StateEnum;
 import uz.pdp.apptelegrammanagergroupbot.repository.GroupRepository;
 import uz.pdp.apptelegrammanagergroupbot.repository.JoinGroupRequestRepository;
+import uz.pdp.apptelegrammanagergroupbot.repository.TariffRepository;
 import uz.pdp.apptelegrammanagergroupbot.utils.AppConstant;
 
 import java.util.*;
@@ -27,6 +27,7 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
     private final JoinGroupRequestRepository joinGroupRequestRepository;
     private final AdminMessageService adminMessageService;
     private final Temp temp;
+    private final TariffRepository tariffRepository;
 
     @Override
 
@@ -45,9 +46,21 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
             paymeOrClick(callbackQuery);
         else if (data.startsWith(AdminConstants.SCREENSHOT_DATA))
             joinWithScreen(callbackQuery);
-        else if (data.startsWith(AppConstant.BACK_DATA) && user.getState().equals(StateEnum.SELECT_TARIFF)) {
+        else if (data.startsWith(AdminConstants.CODE_DATA)) {
+            joinWithCode(callbackQuery);
+        } else if (data.startsWith(AppConstant.BACK_DATA) && user.getState().equals(StateEnum.SELECT_TARIFF)) {
             backToTariffList(callbackQuery, adminId);
         }
+    }
+
+    private void joinWithCode(CallbackQuery callbackQuery) {
+        String data = callbackQuery.getData();
+        long tariffId = Long.parseLong(data.split(":")[1]);
+        Long userId = callbackQuery.getFrom().getId();
+        temp.addTariffId(userId, tariffId);
+        adminBotSender.delete(userId, callbackQuery.getMessage().getMessageId());
+        adminUserState.setState(userId, StateEnum.SENDING_CODE);
+        adminBotSender.exe(userId, AppConstant.SEND_CODE_TEXT);
     }
 
     private void backToTariffList(CallbackQuery callbackQuery, Long adminId) {
@@ -98,22 +111,23 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
 
     private void selectTariff(CallbackQuery callbackQuery) {
         String[] split = callbackQuery.getData().split("\\+");
-        Long groupId = Long.parseLong(split[2].split(":")[1]);
-        Optional<Group> optionalGroup = groupRepository.findByGroupId(groupId);
+        String tariffData = split[0].split(":")[1];
+        Long tariffId = Long.parseLong(tariffData);
+        Tariff tariff = tariffRepository.findById(tariffId).get();
+        Group group = tariff.getGroup();
         Long userId = callbackQuery.getFrom().getId();
         Integer messageId = callbackQuery.getMessage().getMessageId();
-        if (optionalGroup.isEmpty()) {
-            adminBotSender.delete(userId, messageId);
-            return;
-        }
         List<Map<String, String>> list = new ArrayList<>();
-        Group group = optionalGroup.get();
         if (group.isPayment()) {
-            list.add(Map.of("Payme", AdminConstants.PAYMENT_DATA + "payme"));
-            list.add(Map.of("Click", AdminConstants.PAYMENT_DATA + "click" + callbackQuery.getData()));
+            list.add(Map.of("Payme", AdminConstants.PAYMENT_DATA + "payme+" + tariffData,
+                    "Click", AdminConstants.PAYMENT_DATA + "click+" + tariffData));
+//            list.add(Map.of("Click", AdminConstants.PAYMENT_DATA + "click" + tariffData));
+        }
+        if (group.isCode()) {
+            list.add(Map.of(AdminConstants.CODE_TEXT, AdminConstants.CODE_DATA + "wow+" + tariffData));
         }
         if (group.isScreenShot()) {
-            list.add(Map.of(AdminConstants.SCREENSHOT_TEXT, AdminConstants.SCREENSHOT_DATA + "wow" + "+" + callbackQuery.getData()));
+            list.add(Map.of(AdminConstants.SCREENSHOT_TEXT, AdminConstants.SCREENSHOT_DATA + "wow+" + tariffData));
         }
         if (list.isEmpty()) {
             adminBotSender.delete(userId, messageId);
@@ -122,8 +136,8 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
             return;
         }
         adminUserState.setState(userId, StateEnum.SELECT_TARIFF);
-        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + "toTariffs" + callbackQuery.getData()));
-        ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
+        list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA + "toTariffs" + tariffData));
+        InlineKeyboardMarkup replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
         adminBotSender.changeText(userId, messageId, AppConstant.SELECT_CHOOSE);
         adminBotSender.changeKeyboard(userId, messageId, replyKeyboard);
     }
@@ -149,7 +163,7 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
             return;
         }
         adminBotSender.changeText(userId, messageId, sendMessage.getText());
-        adminBotSender.changeKeyboard(userId, messageId, sendMessage.getReplyMarkup());
+        adminBotSender.changeKeyboard(userId, messageId, (InlineKeyboardMarkup) sendMessage.getReplyMarkup());
     }
 
     private void tariffList(CallbackQuery callbackQuery) {
@@ -181,7 +195,7 @@ public class AdminCallbackServiceImpl implements AdminCallbackService {
             i++;
         }
         list.add(Map.of(AppConstant.BACK_TEXT, AppConstant.BACK_DATA));
-        ReplyKeyboard replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
+        InlineKeyboardMarkup replyKeyboard = adminButtonService.callbackKeyboard(list, 1, false);
         adminBotSender.changeText(userId, messageId, sb.toString());
         adminBotSender.changeKeyboard(userId, messageId, replyKeyboard);
     }

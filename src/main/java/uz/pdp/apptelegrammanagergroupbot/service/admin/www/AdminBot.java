@@ -30,11 +30,11 @@ public class AdminBot extends TelegramLongPollingBot {
     private final GroupRepository groupRepository;
     private final AdminBotSender adminBotSender;
 
-    public AdminBot(String token, String username, Long userId, UserPermissionRepository userPermissionRepository, AdminBotSender botSender, JoinGroupRequestRepository joinGroupRequestRepository, JoinRequestService joinRequestService, ChatMemberService chatMemberService, AdminMessageService adminMessageService, AdminCallbackService adminCallbackService, GroupRepository groupRepository, AdminBotSender adminBotSender) {
+    public AdminBot(String token, String username, Long adminId, UserPermissionRepository userPermissionRepository, AdminBotSender botSender, JoinGroupRequestRepository joinGroupRequestRepository, JoinRequestService joinRequestService, ChatMemberService chatMemberService, AdminMessageService adminMessageService, AdminCallbackService adminCallbackService, GroupRepository groupRepository, AdminBotSender adminBotSender) {
         super(new DefaultBotOptions(), token);
         this.token = token;
         this.username = username;
-        this.adminId = userId;
+        this.adminId = adminId;
         this.userPermissionRepository = userPermissionRepository;
         this.joinRequestService = joinRequestService;
         this.chatMemberService = chatMemberService;

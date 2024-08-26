@@ -38,7 +38,7 @@ public class AdminButtonServiceImpl implements AdminButtonService {
     }
 
     @Override
-    public ReplyKeyboard callbackKeyboard(List<Map<String, String>> textData, int rowSize, boolean isIncremented) {
+    public InlineKeyboardMarkup callbackKeyboard(List<Map<String, String>> textData, int rowSize, boolean isIncremented) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
 
         List<List<InlineKeyboardButton>> rows = new ArrayList<>();
